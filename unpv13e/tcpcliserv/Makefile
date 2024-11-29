@@ -1,11 +1,16 @@
 include ../Make.defines
 
-PROGS =	tcpcli01 tcpcli04 tcpcli05 tcpcli06 \
+PROGS =	ass6cli ass6serv24 tcpcli01 tcpcli04 tcpcli05 tcpcli06 \
 		tcpcli07 tcpcli08 tcpcli09 tcpcli10 \
 		tcpserv01 tcpserv02 tcpserv03 tcpserv04 \
 		tcpserv08 tcpserv09 tcpservselect01 tcpservpoll01 tsigpipe
 
 all:	${PROGS}
+ass6cli:	ass6cli.o
+		${CC} ${CFLAGS} -o $@ ass6cli.o ${LIBS}
+
+ass6serv24:	ass6serv24.o
+		${CC} ${CFLAGS} -o $@ ass6serv24.o ${LIBS}
 
 tcpcli01:	tcpcli01.o
 		${CC} ${CFLAGS} -o $@ tcpcli01.o ${LIBS}
