@@ -10,6 +10,7 @@ char id[MAXLINE];
 /* refer to https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797 */
 
 // Hello
+// Hello2
 
 void clr_scr() {
 	printf("\x1B[2J");
