@@ -25,14 +25,22 @@ void xchg_data(FILE *fp, int sockfd)
     int       maxfdp1, stdineof, peer_exit, n;
     fd_set    rset;
     char      sendline[MAXLINE], recvline[MAXLINE];
-
+	
+	// we need to know which of room are full, which are not.
+	// using a while loop until user get into a room.
+	// because a user may need a password to enter a room.
 	
 	set_scr();
 	clr_scr();
     Writen(sockfd, id, strlen(id));
     printf("sent: %s\n", id);
 	readline(sockfd, recvline, MAXLINE);
+	recvline[strlen(recvline)] = '\0';
 	printf("recv: %s", recvline);
+	if(strcmp(recvline, "Which room do you want to get into?\n") == 0) {
+		Fgets(sendline, MAXLINE, fp);
+		
+	}
 	readline(sockfd, recvline, MAXLINE);
 	printf("recv: %s", recvline);	
     stdineof = 0;
@@ -111,8 +119,7 @@ main(int argc, char **argv)
 	Inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
 	strcpy(id, argv[2]);
 
-	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
-
+	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));// three way handshake
 	xchg_data(stdin, sockfd);		/* do it all */
 
 	exit(0);
