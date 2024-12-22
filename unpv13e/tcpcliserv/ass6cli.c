@@ -76,52 +76,6 @@ void xchg_data(FILE *fp, int sockfd)
 	bzero(sendline, MAXLINE);
 	bzero(recvline, MAXLINE);
 
-	// end of giving ID to the server
-	// while (recvline[0] != 'a') {
-	// 	sprintf(sendline, "666 %s\n", id);
-	// 	sendline[strlen(sendline)] = '\0';	
-	// 	Writen(sockfd, sendline, strlen(sendline));
-	// 	printf("sent: %s", sendline);
-	// 	readline(sockfd, recvline, MAXLINE);
-	// 	printf("recv: %s", recvline);
-	// 	if(recvline[0] == 'a') {
-	// 		break;
-	// 	} else {
-	// 		printf("ID is not valid. Please enter again: ");
-	// 		Fgets(id, MAXLINE, fp);
-	// 		id[strlen(id)-1] = '\0';
-	// 	}
-	// }
-
-	// stage = 1; // sent out ID to server
-
-	// 主遊戲迴圈
-    // while (1) {
-        
-    //     Readline(sockfd, recvline, MAXLINE); // 接收伺服器訊息
-
-    //     printf("Server: %s\n", recvline);
-
-    //     // 處理伺服器指令
-    //     if (strcmp(recvline, "Sys: GAME START") == 0) {
-    //         printf("The game has started!\n");
-    //     } else if (strcmp(recvline, "Sys: YOUR TURN") == 0) {
-    //         printf("It's your turn! Enter a command (e.g., MOVE, ATTACK, EXIT): ");
-    //         char command[50];
-	// 		Fgets(command, 50, fp);
-    //         command[strcspn(command, "\n")] = '\0'; // 移除換行符
-
-    //         // 發送指令給伺服器
-    //         sprintf(sendline, "%s\n", command);
-	// 		Writen(sockfd, sendline, strlen(sendline));
-
-    //         if (strcmp(command, "EXIT") == 0) {
-    //             printf("Exiting the game...\n");
-    //             break;
-    //         }
-    //     }
-    // }
-	
 	bool first = false;
 
     for ( ; ; ) {	
