@@ -205,11 +205,11 @@ int main(int argc, char **argv){
 
     // 創建標題，並放置在視窗正中間
     const char* font_path = "Arial.ttf"; // 字體路徑
-    const char* title_text = "印加寶藏";
+    const char* title_text = "INCAN GOLD";
     int font_size = 30;
     int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
     void* title = create_text(window, font_path, title_text, font_size,
-                              (800 - text_width) / 2, (600 - font_size) / 2,
+                              (800 - text_width) / 2, (font_size) / 2,
                               255, 255, 255);
     if (!title) {
         printf("Failed to create title text.\n");
