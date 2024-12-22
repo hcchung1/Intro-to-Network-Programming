@@ -77,23 +77,23 @@ void xchg_data(FILE *fp, int sockfd)
 	bzero(recvline, MAXLINE);
 
 	// end of giving ID to the server
-	while (recvline[0] != 'a') {
-		sprintf(sendline, "666 %s\n", id);
-		sendline[strlen(sendline)] = '\0';	
-		Writen(sockfd, sendline, strlen(sendline));
-		printf("sent: %s", sendline);
-		readline(sockfd, recvline, MAXLINE);
-		printf("recv: %s", recvline);
-		if(recvline[0] == 'a') {
-			break;
-		} else {
-			printf("ID is not valid. Please enter again: ");
-			Fgets(id, MAXLINE, fp);
-			id[strlen(id)-1] = '\0';
-		}
-	}
+	// while (recvline[0] != 'a') {
+	// 	sprintf(sendline, "666 %s\n", id);
+	// 	sendline[strlen(sendline)] = '\0';	
+	// 	Writen(sockfd, sendline, strlen(sendline));
+	// 	printf("sent: %s", sendline);
+	// 	readline(sockfd, recvline, MAXLINE);
+	// 	printf("recv: %s", recvline);
+	// 	if(recvline[0] == 'a') {
+	// 		break;
+	// 	} else {
+	// 		printf("ID is not valid. Please enter again: ");
+	// 		Fgets(id, MAXLINE, fp);
+	// 		id[strlen(id)-1] = '\0';
+	// 	}
+	// }
 
-	stage = 1;
+	// stage = 1; // sent out ID to server
 
 	// 主遊戲迴圈
     // while (1) {
@@ -154,14 +154,41 @@ void xchg_data(FILE *fp, int sockfd)
 				recvline[n] = '\0';
 				printf("\x1B[0;36m%s\x1B[0m", recvline);
 				fflush(stdout);
-				if(strcmp(recvline, "Sys: Which room do you want?\n") == 0) {
-					// get into the room
-					stage = 2; 
-					break;
-				} else if(strcmp(recvline, "Sys: Make command now!\n") == 0){
-					// make command
-					printf("Enter command: ");
-					stage = 2;
+				// if(strcmp(recvline, "Enter your name: \n") == 0){
+				// 	// send ID
+				// 	sprintf(sendline, "%s\n", id);
+				// 	Writen(sockfd, sendline, strlen(sendline));
+				// 	printf("sent: %s", sendline);
+
+				// } else if(strcmp(recvline, "Enter room number (1-5):\n") == 0){
+				// 	// send room number
+				// 	printf("Enter room number (1-5): ");
+				// 	stage = 3;
+				// }else if(strcmp(recvline, "Sys: Make command now!\n") == 0){
+				// 	// make command
+				// 	printf("Enter command: ");
+				// 	stage = 2;
+				// }
+				if(stage == 0){
+					if(strcmp(recvline, "Enter your name: \n") == 0){
+						printf("Enter your name: ");
+						stage++;
+					}
+				} else if(stage == 2){
+					if(strcmp(recvline, "Enter room number (1-5):\n") == 0){
+						printf("Enter room number (1-5): ");
+						stage++;
+					}
+				} else if(stage == 4){
+					if(strcmp(recvline, "Sys: Make command now!\n") == 0){
+						printf("Enter command: ");
+						stage++;
+					}
+				} else if(stage == 5){
+					if(strcmp(recvline, "Sys: Waiting for the result...\n") == 0){
+						printf("Waiting for the result...\n");
+						stage++;
+					}
 				}
 			}
 			else { // n < 0
@@ -182,9 +209,25 @@ void xchg_data(FILE *fp, int sockfd)
 				};
             }
 			else {
-				n = strlen(sendline);
-				sendline[n] = '\n';
-				Writen(sockfd, sendline, n+1);
+				if(stage == 1){
+					// send ID
+					sprintf(sendline, "User name: %s\n", id);
+					printf("sent: %s", sendline);
+					Writen(sockfd, sendline, strlen(sendline));
+					stage++;
+				}else if(stage == 3){
+					// send room number
+					printf("sent: %s", sendline);
+					Writen(sockfd, sendline, strlen(sendline));
+					stage++;
+				} else if(stage == 5){
+					// make command
+					printf("sent: %s", sendline);
+					Writen(sockfd, sendline, strlen(sendline));
+					stage = 4;
+				} else {
+					printf("Please wait for the server to send you a message.\n");
+				}
 			};
         }
     }
