@@ -168,7 +168,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* title)
 			};
         }
 		// 清除背景並繪製內容
-        clear_window(window, 0, 0, 0); // 黑色背景
+        // clear_window(window, 0, 0, 0); // 黑色背景
         draw_text(window, title);      // 繪製標題
         display_window(window);        // 顯示內容
 
