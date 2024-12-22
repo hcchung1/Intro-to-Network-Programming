@@ -102,18 +102,18 @@ void xchg_data(FILE *fp, int sockfd)
 				// change here to know everyting about the room
 				recvline[n] = '\0';
 				// printf("received: ");
-				printf("%s\n", recvline);
+				// printf("%s\n", recvline);
 				// bzero(recvline, MAXLINE);
 				// printf("%d\n", stage);
 				// fflush(stdout);
 				if(stage == 0 && strcmp(recvline, "Enter your name: \n") == 0){
 					printf("%d Enter your name: \n", stage);
 					stage++;
-				} else if(stage == 2){
-					if(strcmp(recvline, "Enter room number (1-5):\n") == 0){
-						printf("Enter room number (1-5): ");
-						stage++;
-					}
+				} else if(stage == 2 && strcmp(recvline, "Enter room number (1-5):\n") == 0){
+					
+					printf("Enter room number (1-5): ");
+					stage++;
+					
 				} else if(stage == 4){
 					if(strcmp(recvline, "Sys: Make command now!\n") == 0){
 						printf("Enter command: ");
@@ -138,7 +138,7 @@ void xchg_data(FILE *fp, int sockfd)
 		
         if (FD_ISSET(fileno(fp), &rset)) {  /* input is readable */
 
-			printf("something gets from stdin1\n");
+			// printf("something gets from stdin1\n");
 
             if (Fgets(sendline, MAXLINE, fp) == NULL) {
 				if (peer_exit)
@@ -150,7 +150,7 @@ void xchg_data(FILE *fp, int sockfd)
 				};
             }
 			else {
-				printf("something gets from stdin\n");
+				// printf("stdin ");
 				// if(stage == 1){
 				// 	// send ID
 				// 	sprintf(sendline, "User name: %s\n", id);
@@ -170,8 +170,9 @@ void xchg_data(FILE *fp, int sockfd)
 				// } else {
 				// 	printf("Please wait for the server to send you a message.\n");
 				// }
-				printf("sent: %s", sendline);
+				sendline[strlen(sendline)-1] = '\0';
 				Writen(sockfd, sendline, strlen(sendline));
+				printf("sent: %s\n", sendline);
 				bzero(sendline, MAXLINE);
 				bzero(recvline, MAXLINE);
 			};
@@ -179,9 +180,8 @@ void xchg_data(FILE *fp, int sockfd)
     }
 };
 
-int
-main(int argc, char **argv)
-{
+int main(int argc, char **argv){
+
 	int					sockfd;
 	struct sockaddr_in	servaddr;
 
@@ -194,12 +194,9 @@ main(int argc, char **argv)
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(SERV_PORT+5);
 	Inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
-	// strcpy(id, argv[2]);
-	// id[strlen(id)] = '\0';
 
-	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));// three way handshake
-	printf("Sys: connected to server!\n");
-	fflush(stdout);
+	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
+	printf("Connected to server successfully!\n");
 
 	xchg_data(stdin, sockfd);		/* do it all */
 
