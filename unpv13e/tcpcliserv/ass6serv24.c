@@ -1,225 +1,369 @@
-#include "unp.h"
-#define MAX_CLIENTS 10
-#define MAX_IDLEN 256 // ???check out this???
-#define MAX_QUEUE 10 // 最大等待佇列長度
+#include  "unp.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <arpa/inet.h>
+#include <time.h>
 
-// void handle_chat(int client1, int client2, char* client1_id, char* client2_id);
+#define BUFFER_SIZE 1024
+#define MAX_ROOMS 5
+#define MAX_CLIENTS_PER_ROOM 8
+#define MAX_NAME_LENGTH 50
 
-int main(int argc, char **argv){
+// 房間相關變數
+int room_clients[MAX_ROOMS][MAX_CLIENTS_PER_ROOM];
+int room_client_count[MAX_ROOMS] = {0};
+char room_client_names[MAX_ROOMS][MAX_CLIENTS_PER_ROOM][MAX_NAME_LENGTH];
+pthread_mutex_t room_locks[MAX_ROOMS];
+int room_max_players[MAX_ROOMS] = {0};
+int room_rounds[MAX_ROOMS] = {0};
+int room_ready[MAX_ROOMS] = {0};
+int room_started[MAX_ROOMS] = {0};
 
-    // char recvline[MAXLINE], sendline[MAXLINE];
-
-    // get the server file descriptor
-    int server_fd = Socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd == -1) {
-        perror("Socket creation failed");
-        exit(EXIT_FAILURE);
+// 廣播訊息
+void broadcast_message(int room_number, const char *message, int sender_fd) {
+    pthread_mutex_lock(&room_locks[room_number]);
+    for (int i = 0; i < room_client_count[room_number]; i++) {
+        int client_fd = room_clients[room_number][i];
+        if (client_fd != sender_fd) {
+            write(client_fd, message, strlen(message));
+        }
     }
+    pthread_mutex_unlock(&room_locks[room_number]);
+}
 
-    // set socket options to avoid address already in use error
-    int opt = 1;
-    Setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    Setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+// 初始化房間
+void initialize_rooms() {
+    for (int i = 0; i < MAX_ROOMS; i++) {
+        pthread_mutex_init(&room_locks[i], NULL);
+        room_client_count[i] = 0;
+        room_max_players[i] = 0;
+        room_rounds[i] = 0;
+        room_ready[i] = 0;
+        room_started[i] = 0;
+    }
+}
 
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(SERV_PORT+5); // assignment 6 port number
-    Bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
-    Listen(server_fd, LISTENQ);
+// 處理遊戲邏輯
+void start_game(int room_number) {
+    char buffer[BUFFER_SIZE];
+    int scores[MAX_CLIENTS_PER_ROOM] = {0};
+    snprintf(buffer, sizeof(buffer), "Game in room %d has started! Prepare to explore!\n", room_number + 1);
+    broadcast_message(room_number, buffer, -1);
 
-    // Signal(SIGCHLD, sig_chld);    /* must call waitpid() */
+    srand(time(NULL));
+    int card[35] = {2,4,5,6,7,8,9,10,10,11,11,13,14,15,17,-1,-1,-1,-2,-2,-2,-3,-3,-3,-4,-4,-4,-5,-5,-5,0,0,0,0,0};
+    int out_card[35] = {1};
+    
+    for (int round = 0; round < room_rounds[room_number]; round++) {
+        int adv_status[MAX_CLIENTS_PER_ROOM] = {1};
+        int remaining_players = room_max_players[room_number];
+        int tempcoin[MAX_CLIENTS_PER_ROOM] = {0};
+        int tragedy[5] = {0};
+        int leftcoin = 0;
+        clock_t start_time = clock();
+        card[30+round] = 100 + round;
+        int appear[5] = {0};
+        int treasure_value[5] = {5, 7, 10, 12, 15};
+        snprintf(buffer, sizeof(buffer), "Round %d start from NOW!\n", round + 1);
+        broadcast_message(room_number, buffer, -1);
+        int r = 0;
+        int failed = 0;
+        while ((clock() - start_time) < CLOCKS_PER_SEC) {
+        // 持續等待，直到經過 1 秒
+        }
+        while (remaining_players != 0) {
+            while ((clock() - start_time) < CLOCKS_PER_SEC) {
+            // 持續等待，直到經過 1 秒
+            }
+            r++;
+            snprintf(buffer, sizeof(buffer), "Step:%d  ", r);
+            broadcast_message(room_number, buffer, -1);
+            int y,z;
+            do {
+                y = rand() % 35;
+                z = card[y];
+            } while (z == 0 || out_card[y] == 0);
+            out_card[y] = 0;
 
-    struct sockaddr_in client_addr[10];
-    int client_fds[10];
+            if (z > 0 && z <= 20) {
+                int t = z;
+                snprintf(buffer, sizeof(buffer), "----Discovered %d gems!----\n", z);
+                broadcast_message(room_number, buffer, -1);
+                while ((t / remaining_players) > 0) {
+                    for (int GEM = 0; GEM < room_max_players[room_number]; GEM++) {
+                        if (adv_status[GEM] == 1) {
+                            tempcoin[GEM]++;
+                        }
+                    }
+                    t -= remaining_players;
+                }
+                leftcoin += t;
+            } else if (z < 0) {
+                if (z == -1) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY1:SNAKE----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[0] += 1;
+                } else if (z == -2) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY2:ROCKS----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[1] += 1;
+                } else if (z == -3) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY3:FIRE----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[2] += 1;
+                } else if (z == -4) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY4:SPIDERS----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[3] += 1;
+                } else if (z == -5) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY5:ZOMBIES----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[4] += 1;
+                }
+                for (int T = 0; T < 5; T++) {
+                    if (tragedy[T] == 2) {
+                        failed = 1;
+                    }
+                }
+            } else if (z >= 100) {
+                appear[z - 100] = 1;
+                snprintf(buffer, sizeof(buffer), "WOW! It's a treasure!!! Value: {%d}.\nREMEMBER: ONLY ONE person can bring it back...\n", treasure_value[z - 100]);
+                broadcast_message(room_number, buffer, -1);
+            }
 
-    fd_set rset;
-    int num_clients = 0; // the number of client in the chat room now.
-    char clients_id[MAX_CLIENTS][MAX_IDLEN]; // the id of each client
-    int is_occupied[MAX_CLIENTS] = {0}; // 用於標記位置是否被佔用
+            while ((clock() - start_time) < CLOCKS_PER_SEC) {
+            // 持續等待，直到經過 1 秒
+            }
 
-    // 等待佇列的變數
-    int waiting_queue[MAX_QUEUE];
-    int front = 0, rear = 0, queue_size = 0;
+            for (int i = 0; i < room_max_players[room_number]; i++) {
+                if (adv_status[i] == 1) {
+                    snprintf(buffer, sizeof(buffer), "%s have: %d gems\n", room_client_names[room_number][i], tempcoin[i]);
+                    broadcast_message(room_number, buffer, -1);
+                }
+            }
+            for (int i = 0; i < 5; i++) {
+                if (appear[i] == 1) {
+                    snprintf(buffer, sizeof(buffer), "There is a %d value treasure left.\n", treasure_value[i]);
+                    broadcast_message(room_number, buffer, -1);
+                }
+            }
+            snprintf(buffer, sizeof(buffer), "%d gem(s) left on the floor.\n", leftcoin);
+            broadcast_message(room_number, buffer, -1);
+            snprintf(buffer, sizeof(buffer), "NOW, it's time to make a decision...Do you want to go home or stay? (y/n)\n");
+            broadcast_message(room_number, buffer, -1);
+            
 
-    printf(" Server is running on port %d\n", SERV_PORT+5);
+            // 設定回覆的超時時間
+            const int TIMEOUT_SECONDS = 120;
+            char player_choices[room_max_players[room_number]];
+
+            for (int i = 0; i < room_max_players[room_number]; i++) {
+                if (adv_status[i] == 1) {
+                    snprintf(buffer, sizeof(buffer), "%s, do you want to go home or stay? (y/n):\n", room_client_names[room_number][i]);
+                    write(room_clients[room_number][i], buffer, strlen(buffer));
+
+                    // 開始計時
+                    time_t start_time = time(NULL);
+                    int bytes_read;
+                    while (1) {
+                        // 嘗試讀取回覆
+                        bytes_read = read(room_clients[room_number][i], buffer, sizeof(buffer) - 1);
+                        if (bytes_read > 0) {
+                            buffer[bytes_read] = '\0'; // 確保字串以 NULL 結尾
+                            player_choices[i] = buffer[0]; // 暫存玩家選擇
+                            break;
+                        }
+
+                        // 檢查是否超時
+                        if (difftime(time(NULL), start_time) > TIMEOUT_SECONDS) {
+                            player_choices[i] = 'N'; // 超時視為回家
+                            snprintf(buffer, sizeof(buffer), "%s did not respond in time and is assumed to have gone home.\n", room_client_names[room_number][i]);
+                            broadcast_message(room_number, buffer, -1);
+                            break;
+                        }
+                    }
+                } else {
+                    player_choices[i] = 'N'; // 已回家的玩家默認為 N
+                }
+            }
+
+            // 公布所有玩家的選擇並更新狀態
+            for (int i = 0; i < room_max_players[room_number]; i++) {
+                if (adv_status[i] == 1) {
+                    if (player_choices[i] == 'N' || player_choices[i] == 'n') {
+                        adv_status[i] = 0; // 玩家選擇回家
+                        snprintf(buffer, sizeof(buffer), "%s has chosen to go home.\n", room_client_names[room_number][i]);
+                        broadcast_message(room_number, buffer, -1);
+                    } else {
+                        snprintf(buffer, sizeof(buffer), "%s has chosen to stay.\n", room_client_names[room_number][i]);
+                        broadcast_message(room_number, buffer, -1);
+                    }
+                }
+            }
+
+            // 更新剩餘玩家數量
+            remaining_players = 0;
+            for (int i = 0; i < room_max_players[room_number]; i++) {
+                if (adv_status[i] == 1) {
+                    remaining_players++;
+                }
+            }
+
+            // 如果沒有玩家剩下，結束當前回合
+            if (remaining_players == 0) {
+                snprintf(buffer, sizeof(buffer), "All players have gone home. Ending the round.\n");
+                broadcast_message(room_number, buffer, -1);
+                break;
+            }
+
+        }
+    }
+}
+
+// 處理客戶端連線
+void *handle_client(void *client_socket) {
+    int client_fd = *(int *)client_socket;
+    free(client_socket);
+    char buffer[BUFFER_SIZE];
+    char client_name[MAX_NAME_LENGTH];
+    int room_number = 0;
+
+    // 要求客戶端輸入名稱
+    write(client_fd, "Enter your name: \n", 18);
+    int bytes_read = read(client_fd, client_name, sizeof(client_name) - 1);
+    if (bytes_read <= 0) {
+        close(client_fd);
+        return NULL;
+    } else {
+        printf("New client connected: %s\n", client_name);
+    }
+    client_name[bytes_read - 1] = '\0'; // 移除換行符
 
     while (1) {
+        write(client_fd, "Enter room number (1-5):\n", 25);
+        bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+        if (bytes_read <= 0) {
+            close(client_fd);
+            return NULL;
+        } else printf("room number: %s\n", buffer);
 
-        FD_ZERO(&rset);
-        FD_SET(server_fd, &rset);
-        int maxfd = server_fd;
-        for (int i = 0; i < MAX_CLIENTS; ++i) {
-            if(is_occupied[i] == 0) continue;
-            FD_SET(client_fds[i], &rset);
-            if (client_fds[i] > maxfd) maxfd = client_fds[i];
+        buffer[bytes_read] = '\0';
+        room_number = atoi(buffer) - 1;
+
+        if (room_number >= 0 && room_number < MAX_ROOMS) {
+            printf("Client %s joined room %d\n", client_name, room_number + 1);
+            break;
+        } else {
+            write(client_fd, "Invalid room number. Try again.\n", 32);
         }
+    }
 
-        // using select to find whether there is a new client want to connect
-        Select(maxfd + 1, &rset, NULL, NULL, NULL);
+    pthread_mutex_lock(&room_locks[room_number]);
+    if (room_client_count[room_number] < MAX_CLIENTS_PER_ROOM) {
+        printf("Adding client %s to room %d\n", client_name, room_number + 1);
+        room_clients[room_number][room_client_count[room_number]] = client_fd;
+        strncpy(room_client_names[room_number][room_client_count[room_number]], client_name, MAX_NAME_LENGTH);
+        room_client_count[room_number]++;
 
-        if (FD_ISSET(server_fd, &rset)) {
-            
-            printf("New client is trying to connect...\n");
-            struct sockaddr_in client_addr;
-            socklen_t addr_len = sizeof(client_addr);
-            int new_client_fd = Accept(server_fd, (struct sockaddr*)&client_addr, &addr_len);
+        // 廣播玩家加入的訊息
+        snprintf(buffer, sizeof(buffer), "%s has joined the room! We now have %d player(s) in the room!\n",
+                 client_name, room_client_count[room_number]);
+        broadcast_message(room_number, buffer, -1);
 
-            if (num_clients < MAX_CLIENTS) {
-                int available_index = -1;
-                for (int i = 0; i < MAX_CLIENTS; ++i) {
-                    if (!is_occupied[i]) {
-                        available_index = i;
-                        break;
-                    }
-                }
+        if (room_client_count[room_number] == 1) {
+            pthread_mutex_unlock(&room_locks[room_number]);
+            snprintf(buffer, sizeof(buffer), "Set players (5-8):\n");
+            write(client_fd, buffer, strlen(buffer));
 
-                client_fds[available_index] = new_client_fd;
-                is_occupied[available_index] = 1;
-                num_clients++;
-
-                char recvline[MAXLINE];
-                int n = Read(new_client_fd, recvline, sizeof(recvline));
-                recvline[n] = '\0';
-                strcpy(clients_id[available_index], recvline);
-                printf("New client (#%d) connected: %s\n", available_index + 1, clients_id[available_index]);
-
-                // 通知其他用戶
-                char msg[MAXLINE];
-                char msggg[MAXLINE];
-                sprintf(msg, "(#%d user %s enters)\n", available_index + 1, clients_id[available_index]);
-                for (int i = 0; i < MAX_CLIENTS; ++i) {
-                    if (is_occupied[i] && i != available_index) {
-                        Write(client_fds[i], msg, strlen(msg));
-                    }
-                }
-
-                // 發送歡迎訊息
-                sprintf(msg, "You are the #%d user.\n", available_index + 1);
-                Write(new_client_fd, msg, strlen(msg));
-                sprintf(msggg, "You may now type in or wait for other users.\n");
-                Write(new_client_fd, msggg, strlen(msggg));
-            } 
-            else {
-                if (queue_size < MAX_QUEUE) {
-                    // 加入等待佇列
-                    waiting_queue[rear] = new_client_fd;
-                    rear = (rear + 1) % MAX_QUEUE;
-                    queue_size++;
-                    printf("Chatroom full. Client added to waiting queue.\n");
+            while (1) {
+                bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+                if (bytes_read <= 0) {
+                    close(client_fd);
+                    return NULL;
+                } else printf("players: %s\n", buffer);
+                buffer[bytes_read] = '\0';
+                int players = atoi(buffer);
+                if (players >= 5 && players <= 8) {
+                    room_max_players[room_number] = players;
+                    break;
                 } else {
-                    // 若等待佇列滿，拒絕新用戶
-                    char *reject_msg = "Chatroom and waiting queue are full. Try again later.\n";
-                    Write(new_client_fd, reject_msg, strlen(reject_msg));
-                    Close(new_client_fd);
+                    write(client_fd, "Invalid. Enter a number between 5 and 8:\n", 40);
                 }
             }
-        }
-        // Deal with chatting
-        for (int i = 0; i < MAX_CLIENTS; ++i) {
-            if (FD_ISSET(client_fds[i], &rset)) {
-                char buffer[MAXLINE];
-                int n = Read(client_fds[i], buffer, sizeof(buffer));
-                if (n == 0) {
-                    if(num_clients == 2){
-                        printf("Client %s disconnected\n", clients_id[i]);
-                        char msgg[MAXLINE];
-                        sprintf(msgg, "Bye!\n");
-                        msgg[strlen(msgg)] = '\0';
-                        Write(client_fds[i], msgg, strlen(msgg));
-                        // Shutdown(client_fds[i], SHUT_WR); 
-                        Close(client_fds[i]);
-                        bzero(msgg, MAXLINE);
-                        sprintf(msgg, "(%s left the room. You are the last one. Press Ctrl+D to leave or wait for a new user.)\n", clients_id[i]);
-                        for (int j = 0; j < MAX_CLIENTS; ++j) {
-                            if (is_occupied[j] && j != i) {
-                                Write(client_fds[j], msgg, strlen(msgg));
-                                break;
-                            }
-                        }
-                    } 
-                    else{
-                        printf("Client %s disconnected\n", clients_id[i]); 
-                        char message[MAXLINE];
-                        sprintf(message, "Bye!\n");
-                        message[strlen(message)] = '\0';
-                        Write(client_fds[i], message, strlen(message));
-                        // Shutdown(client_fds[i], SHUT_WR); 
-                        Close(client_fds[i]);              
-                        bzero(message, MAXLINE);
-                        sprintf(message, "(%s left the room. %d users left)\n", clients_id[i], num_clients - 1);
-                        message[strlen(message)] = '\0';
-                        for (int j = 0; j < MAX_CLIENTS; ++j) {
-                            if (is_occupied[j] && j != i) {
-                                Write(client_fds[j], message, strlen(message));
-                            }
-                        }
-                        bzero(message, MAXLINE);
-                    }
-                    
-                    // bzero (clients_id[num_clients - 1], MAX_IDLEN);
-                    // bzero (client_fds[(int)num_clients - 1], sizeof(int));
-                    
-                    is_occupied[i] = 0;
-                    bzero (buffer, MAXLINE);
-                    num_clients--;
 
-                    printf("End of removing.\n");
-                    
-                    if (queue_size > 0) {
-                        int available_index = -1;
-                        for (int k = 0; k < MAX_CLIENTS; ++k) {
-                            if (!is_occupied[k]) {
-                                available_index = k;
-                                break;
-                            }
-                        }
+            snprintf(buffer, sizeof(buffer), "Set rounds (3-5):\n");
+            write(client_fd, buffer, strlen(buffer));
 
-                        if (available_index != -1) {
-
-                            int next_client_fd = waiting_queue[front];
-                            front = (front + 1) % MAX_QUEUE;
-                            queue_size--;
-
-                            client_fds[available_index] = next_client_fd;
-                            is_occupied[available_index] = 1;
-                            num_clients++;
-
-                            char recvline[MAXLINE];
-                            int n = Read(next_client_fd, recvline, sizeof(recvline));
-                            recvline[n] = '\0';
-                            strcpy(clients_id[available_index], recvline);
-                            printf("Client from waiting queue (#%d) connected: %s\n", available_index + 1, clients_id[available_index]);
-
-                            char mmsg[MAXLINE];
-                            sprintf(mmsg, "Welcome! You are the #%d user.\n", available_index + 1);
-                            Write(next_client_fd, mmsg, strlen(mmsg));
-                            sprintf(mmsg, "You may now type in or wait for other users.\n");
-                            Write(next_client_fd, mmsg, strlen(mmsg));
-                        }
-                    }
-
-                    printf("End of checking users waiting in queue.\n");
-
-                } else if(n < 0){
-                    perror("Read error");
-                    // Shutdown(client_fds[i], SHUT_WR);
-                    Close(client_fds[i]);
-                }
-                else{
-                    // someone sends a message
-                    buffer[n] = '\0';
-                    char message[MAXLINE];
-                    sprintf(message, "(%s) %s", clients_id[i], buffer);
-                    message[strlen(message)] = '\0';
-                    for (int j = 0; j < MAX_CLIENTS; ++j) {
-                        if (is_occupied[j] && j != i) {
-                            Write(client_fds[j], message, strlen(message));
-                        }
-                    }
+            while (1) {
+                bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+                if (bytes_read <= 0) {
+                    close(client_fd);
+                    return NULL;
+                } else printf("rounds: %s\n", buffer);
+                buffer[bytes_read] = '\0';
+                int rounds = atoi(buffer);
+                if (rounds >= 3 && rounds <= 5) {
+                    room_rounds[room_number] = rounds;
+                    room_ready[room_number] = 1;
+                    break;
+                } else {
+                    write(client_fd, "Invalid. Enter a number between 3 and 5:\n", 40);
                 }
             }
+
+            snprintf(buffer, sizeof(buffer), "Room setup complete. Waiting for players.\n");
+            write(client_fd, buffer, strlen(buffer));
+
+            while (room_client_count[room_number] < room_max_players[room_number]) {
+                // 等待其他玩家加入
+            }
+
+            snprintf(buffer, sizeof(buffer), "Game starting!\n");
+            broadcast_message(room_number, buffer, -1);
+            start_game(room_number);
+        } else {
+            pthread_mutex_unlock(&room_locks[room_number]);
+            snprintf(buffer, sizeof(buffer), "Waiting for the game to start...\n");
+            write(client_fd, buffer, strlen(buffer));
         }
+    } else {
+        pthread_mutex_unlock(&room_locks[room_number]);
+        write(client_fd, "Room is full. Disconnecting.\n", 29);
+        close(client_fd);
+    }
+
+    return NULL;
+}
+
+// 主程式
+int main() {
+    int server_fd, new_client_fd;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_len = sizeof(client_addr);
+
+    initialize_rooms();
+
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(SERV_PORT + 5);
+
+    bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    listen(server_fd, 5);
+
+    printf("Server listening...\n");
+
+    while (1) {
+        new_client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_len);
+        printf("New client connected.\n");
+        pthread_t client_thread;
+        int *client_socket = malloc(sizeof(int));
+        *client_socket = new_client_fd;
+        pthread_create(&client_thread, NULL, handle_client, client_socket);
+        pthread_detach(client_thread);
     }
 
     return 0;

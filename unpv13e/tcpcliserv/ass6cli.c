@@ -9,7 +9,7 @@
 
 char id[MAXLINE];
 
-#define TIMEOUT_SEC 20;
+#define TIMEOUT_SEC 20
 
 extern void* create_window(int width, int height, const char* title);
 extern void clear_window(void* window, int r, int g, int b);
@@ -65,21 +65,15 @@ void xchg_data(FILE *fp, int sockfd)
 	// stage 4: make command
 	// stage 5: waiting for the result
 
-	
-	
-	// we need to know which of room are full, which are not.
-	// using a while loop until user get into a room.
-	// because a user may need a password to enter a room.
-	
-	set_scr();
-	clr_scr();
 	bzero(sendline, MAXLINE);
 	bzero(recvline, MAXLINE);
 
 	bool first = false;
+	peer_exit = 0;
+	stdineof = 0;
 
     for ( ; ; ) {	
-		if(!first) {printf("firsttime\n"); first = true;};
+		// if(!first) {printf("firsttime\n"); first = true;};
 		FD_ZERO(&rset);
 		maxfdp1 = 0;
         if (stdineof == 0) {
@@ -92,7 +86,7 @@ void xchg_data(FILE *fp, int sockfd)
 				maxfdp1 = sockfd;
 		};	
         maxfdp1++;
-        Select(maxfdp1, &rset, NULL, NULL, &timeout); // timeout for 20 seconds
+        Select(maxfdp1, &rset, NULL, NULL, NULL); // timeout for 20 seconds
 		if (FD_ISSET(sockfd, &rset)) {  /* socket is readable */
 			n = read(sockfd, recvline, MAXLINE);
 			if (n == 0) {
@@ -107,28 +101,14 @@ void xchg_data(FILE *fp, int sockfd)
 			else if (n > 0) {
 				// change here to know everyting about the room
 				recvline[n] = '\0';
-				printf("\x1B[0;36m%s\x1B[0m", recvline);
-				fflush(stdout);
-				// if(strcmp(recvline, "Enter your name: \n") == 0){
-				// 	// send ID
-				// 	sprintf(sendline, "%s\n", id);
-				// 	Writen(sockfd, sendline, strlen(sendline));
-				// 	printf("sent: %s", sendline);
-
-				// } else if(strcmp(recvline, "Enter room number (1-5):\n") == 0){
-				// 	// send room number
-				// 	printf("Enter room number (1-5): ");
-				// 	stage = 3;
-				// }else if(strcmp(recvline, "Sys: Make command now!\n") == 0){
-				// 	// make command
-				// 	printf("Enter command: ");
-				// 	stage = 2;
-				// }
-				if(stage == 0){
-					if(strcmp(recvline, "Enter your name: \n") == 0){
-						printf("Enter your name: ");
-						stage++;
-					}
+				// printf("received: ");
+				printf("%s\n", recvline);
+				// bzero(recvline, MAXLINE);
+				// printf("%d\n", stage);
+				// fflush(stdout);
+				if(stage == 0 && strcmp(recvline, "Enter your name: \n") == 0){
+					printf("%d Enter your name: \n", stage);
+					stage++;
 				} else if(stage == 2){
 					if(strcmp(recvline, "Enter room number (1-5):\n") == 0){
 						printf("Enter room number (1-5): ");
@@ -144,15 +124,21 @@ void xchg_data(FILE *fp, int sockfd)
 						printf("Waiting for the result...\n");
 						stage++;
 					}
+				} else {
+					printf("%s\n", recvline);
 				}
 			}
 			else { // n < 0
 			    printf("(server down)");
 				return;
 			};
+			bzero(recvline, MAXLINE);
+			bzero(sendline, MAXLINE);
         }
 		
         if (FD_ISSET(fileno(fp), &rset)) {  /* input is readable */
+
+			printf("something gets from stdin1\n");
 
             if (Fgets(sendline, MAXLINE, fp) == NULL) {
 				if (peer_exit)
@@ -164,25 +150,30 @@ void xchg_data(FILE *fp, int sockfd)
 				};
             }
 			else {
-				if(stage == 1){
-					// send ID
-					sprintf(sendline, "User name: %s\n", id);
-					printf("sent: %s", sendline);
-					Writen(sockfd, sendline, strlen(sendline));
-					stage++;
-				}else if(stage == 3){
-					// send room number
-					printf("sent: %s", sendline);
-					Writen(sockfd, sendline, strlen(sendline));
-					stage++;
-				} else if(stage == 5){
-					// make command
-					printf("sent: %s", sendline);
-					Writen(sockfd, sendline, strlen(sendline));
-					stage = 4;
-				} else {
-					printf("Please wait for the server to send you a message.\n");
-				}
+				printf("something gets from stdin\n");
+				// if(stage == 1){
+				// 	// send ID
+				// 	sprintf(sendline, "User name: %s\n", id);
+				// 	printf("sent: %s", sendline);
+				// 	Writen(sockfd, sendline, strlen(sendline));
+				// 	stage++;
+				// }else if(stage == 3){
+				// 	// send room number
+				// 	printf("sent: %s", sendline);
+				// 	Writen(sockfd, sendline, strlen(sendline));
+				// 	stage++;
+				// } else if(stage == 5){
+				// 	// make command
+				// 	printf("sent: %s", sendline);
+				// 	Writen(sockfd, sendline, strlen(sendline));
+				// 	stage = 4;
+				// } else {
+				// 	printf("Please wait for the server to send you a message.\n");
+				// }
+				printf("sent: %s", sendline);
+				Writen(sockfd, sendline, strlen(sendline));
+				bzero(sendline, MAXLINE);
+				bzero(recvline, MAXLINE);
 			};
         }
     }
@@ -194,7 +185,7 @@ main(int argc, char **argv)
 	int					sockfd;
 	struct sockaddr_in	servaddr;
 
-	if (argc != 3)
+	if (argc != 2)
 		err_quit("usage: tcpcli <IPaddress> <ID>");
 
 	sockfd = Socket(AF_INET, SOCK_STREAM, 0);
@@ -203,15 +194,14 @@ main(int argc, char **argv)
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(SERV_PORT+5);
 	Inet_pton(AF_INET, argv[1], &servaddr.sin_addr);
-	strcpy(id, argv[2]);
-	id[strlen(id)] = '\0';
+	// strcpy(id, argv[2]);
+	// id[strlen(id)] = '\0';
 
 	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));// three way handshake
 	printf("Sys: connected to server!\n");
+	fflush(stdout);
 
 	xchg_data(stdin, sockfd);		/* do it all */
 
-	// closing the connection before exit
-	close(sockfd);
 	exit(0);
 }
