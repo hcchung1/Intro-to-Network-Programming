@@ -11,6 +11,13 @@ char id[MAXLINE];
 
 #define TIMEOUT_SEC 20;
 
+extern void* create_window(int width, int height, const char* title);
+extern void clear_window(void* window, int r, int g, int b);
+extern void display_window(void* window);
+extern void close_window(void* window);
+extern int is_window_open(void* window);
+extern int poll_event(void* window);
+
 // 定義房間結構
 typedef struct Room {
     char name[50];            // 房間名稱
@@ -50,6 +57,13 @@ void xchg_data(FILE *fp, int sockfd)
 	struct timeval timeout;
 	timeout.tv_sec = TIMEOUT_SEC;
 	timeout.tv_usec = 0;
+	int stage = 0;
+	// stage 0: ID
+	// stage 1: send ID
+	// stage 2: room
+	// stage 3: chosen room
+	// stage 4: make command
+	// stage 5: waiting for the result
 
 	
 	
@@ -78,6 +92,8 @@ void xchg_data(FILE *fp, int sockfd)
 			id[strlen(id)-1] = '\0';
 		}
 	}
+
+	stage = 1;
 
 	// 主遊戲迴圈
     // while (1) {
@@ -138,6 +154,15 @@ void xchg_data(FILE *fp, int sockfd)
 				recvline[n] = '\0';
 				printf("\x1B[0;36m%s\x1B[0m", recvline);
 				fflush(stdout);
+				if(strcmp(recvline, "Sys: Which room do you want?\n") == 0) {
+					// get into the room
+					stage = 2; 
+					break;
+				} else if(strcmp(recvline, "Sys: Make command now!\n") == 0){
+					// make command
+					printf("Enter command: ");
+					stage = 2;
+				}
 			}
 			else { // n < 0
 			    printf("(server down)");
