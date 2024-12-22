@@ -23,6 +23,8 @@ int room_host[MAX_ROOMS] = {-1};
 int room_rounds[MAX_ROOMS] = {0};
 int client_rooms[MAX_CLIENTS] = {-1};
 
+int ready_status[MAX_ROOMS][MAX_CLIENTS_PER_ROOM] = {0};
+
 void broadcast_message(int room_number, const char *message, int sender_fd) {
     for (int i = 0; i < room_client_count[room_number]; i++) {
         int client_fd = room_clients[room_number][i];
@@ -262,7 +264,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd) {
                 if (room_client_count[chosen_room] == 0) {
                     // 房主
                     room_host[chosen_room] = client_fd;
-                    snprintf(buffer, sizeof(buffer), "You are the host of room %d. Set the number of players (2-8) and rounds (1-5):\n", chosen_room + 1);
+                    snprintf(buffer, sizeof(buffer), "You are the host of room %d. Set the number of players (5-8) and rounds (3-5):\n", chosen_room + 1);
                 } else {
                     int guest_number = room_client_count[chosen_room] + 1;
                     snprintf(buffer, sizeof(buffer), "You are guest no.%d in room %d.\n", guest_number, chosen_room + 1);
@@ -293,22 +295,22 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd) {
             if (strcmp(token, "players") == 0) {
                 token = strtok(NULL, " ");
                 int players = atoi(token);
-                if (players >= 2 && players <= MAX_VISITORS + 1) {
+                if (players >= 5 && players <= 8) {
                     room_max_players[room_number] = players;
                     snprintf(buffer, sizeof(buffer), "Players set to %d. Now set the rounds (1-5):\n", players);
                 } else {
-                    snprintf(buffer, sizeof(buffer), "Invalid number of players. Enter between 2 and 8.\n");
+                    snprintf(buffer, sizeof(buffer), "Invalid number of players. Enter between 5 and 8.\n");
                 }
             } else if (strcmp(token, "rounds") == 0) {
                 token = strtok(NULL, " ");
                 int rounds = atoi(token);
-                if (rounds >= 1 && rounds <= 5) {
+                if (rounds >= 3 && rounds <= 5) {
                     room_rounds[room_number] = rounds;
                     room_ready[room_number] = 1;
                     snprintf(buffer, sizeof(buffer), "Room setup complete! Waiting for players.\n");
                     broadcast_message(room_number, buffer, -1);
                 } else {
-                    snprintf(buffer, sizeof(buffer), "Invalid number of rounds. Enter between 1 and 5.\n");
+                    snprintf(buffer, sizeof(buffer), "Invalid number of rounds. Enter between 3 and 5.\n");
                 }
             } else {
                 snprintf(buffer, sizeof(buffer), "Invalid command. Use 'players <num>' or 'rounds <num>'.\n");
@@ -316,6 +318,48 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd) {
             write(client_fd, buffer, strlen(buffer));
         } else {
             snprintf(buffer, sizeof(buffer), "Message received: %s\n", buffer);
+            write(client_fd, buffer, strlen(buffer));
+        }
+
+        if (room_client_count[room_number] == room_max_players[room_number]) {
+            stage[client_fd] = 3;
+        }
+
+    } else if (stage[client_fd] == 3) {
+        // 準備階段
+        if (strcmp(buffer, "ok") == 0 || strcmp(buffer, "ready") == 0) {
+            int idx = -1;
+            for (int i = 0; i < room_client_count[room_number]; i++) {
+                if (room_clients[room_number][i] == client_fd) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx != -1) {
+                ready_status[room_number][idx] = 1;
+                snprintf(buffer, sizeof(buffer), "%s is ready.\n", room_client_names[room_number][idx]);
+                broadcast_message(room_number, buffer, -1);
+
+                // 檢查所有玩家是否已準備
+                int all_ready = 1;
+                for (int i = 0; i < room_client_count[room_number]; i++) {
+                    if (ready_status[room_number][i] == 0) {
+                        all_ready = 0;
+                        break;
+                    }
+                }
+                if (all_ready) {
+                    snprintf(buffer, sizeof(buffer), "All players are ready. Host, type 'gogo' to start the game.\n");
+                    broadcast_message(room_number, buffer, -1);
+                }
+            }
+        } else if (client_fd == room_host[room_number] && strcmp(buffer, "gogo") == 0) {
+            // 房主開始遊戲
+            snprintf(buffer, sizeof(buffer), "Game starting now!\n");
+            broadcast_message(room_number, buffer, -1);
+            start_game(room_number);
+        } else {
+            snprintf(buffer, sizeof(buffer), "Invalid command. Type 'ok' or 'ready'.\n");
             write(client_fd, buffer, strlen(buffer));
         }
     }
@@ -381,7 +425,7 @@ int main() {
                     if (client_fd > max_fd) max_fd = client_fd;
 
                     // 發送初始訊息
-                    const char *welcome_msg = "Enter room number (1-5):\n";
+                    const char *welcome_msg = "Enter your name:\n";
                     write(client_fd, welcome_msg, strlen(welcome_msg));
                 } else {
                     // 處理現有客戶端訊息
