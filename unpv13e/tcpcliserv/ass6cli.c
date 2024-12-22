@@ -9,6 +9,9 @@
 
 char id[MAXLINE];
 
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
+
 #define TIMEOUT_SEC 20
 
 extern void* create_window(int width, int height, const char* title);
@@ -19,6 +22,9 @@ extern void* create_text(void* window, const char* font_path, const char* text, 
 extern void draw_text(void* window, void* text);
 extern void delete_text(void* text);
 extern void poll_events(void* window);
+extern void* load_image(const char* image_path);
+extern void draw_image(void* window, void* image, int x, int y);
+extern void delete_image(void* image);
 
 // 定義房間結構
 typedef struct Room {
@@ -51,7 +57,7 @@ void set_scr() {		// set screen to 80 * 25 color mode
 	printf("\x1B[=3h");
 };
 
-void xchg_data(FILE *fp, int sockfd, void* window, void* title)
+void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 {
     int       maxfdp1, stdineof, peer_exit, n;
     fd_set    rset;
@@ -73,9 +79,9 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* title)
 	bool first = false;
 	peer_exit = 0;
 	stdineof = 0;
-	clear_window(window, 0, 0, 0); // 黑色背景
-	draw_text(window, title);      // 繪製標題
-	display_window(window);        // 顯示內容
+	clear_window(window, 0, 0, 0);  // 黑色背景
+	draw_image(window, image, (WINDOW_WIDTH - 700) / 2, 50); // 圖片放置於中央偏上
+	display_window(window);  // 顯示內容
 
     for ( ; ; ) {	
 		// if(!first) {printf("firsttime\n"); first = true;};
@@ -168,9 +174,9 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* title)
 			};
         }
 		// 清除背景並繪製內容
-        // clear_window(window, 0, 0, 0); // 黑色背景
-        draw_text(window, title);      // 繪製標題
-        display_window(window);        // 顯示內容
+         clear_window(window, 0, 0, 0);  // 黑色背景
+        draw_image(window, image, (WINDOW_WIDTH - 700) / 2, 50); // 圖片放置於中央偏上
+        display_window(window);  // 顯示內容
 
         usleep(16000); // 模擬 60 FPS
     }
@@ -196,28 +202,46 @@ int main(int argc, char **argv){
 	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
 	printf("Connected to server successfully!\n");
 
+	// // 創建 SFML 視窗
+    // void* window = create_window(800, 600, "Client Window");
+    // if (!window) {
+    //     printf("Failed to create SFML window.\n");
+    //     return -1;
+    // }
+
+    // // 創建標題，並放置在視窗正中間
+    // const char* font_path = "Arial.ttf"; // 字體路徑
+    // const char* title_text = "INCAN GOLD";
+    // int font_size = 30;
+    // int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+    // void* title = create_text(window, font_path, title_text, font_size,
+    //                           (800 - text_width) / 2, (font_size) / 2,
+    //                           255, 255, 255);
+    // if (!title) {
+    //     printf("Failed to create title text.\n");
+    //     close_window(window);
+    //     return -1;
+    // }
+
 	// 創建 SFML 視窗
-    void* window = create_window(800, 600, "Client Window");
+    void* window = create_window(WINDOW_WIDTH, WINDOW_HEIGHT, "Client Window");
     if (!window) {
         printf("Failed to create SFML window.\n");
         return -1;
     }
 
-    // 創建標題，並放置在視窗正中間
-    const char* font_path = "Arial.ttf"; // 字體路徑
-    const char* title_text = "INCAN GOLD";
-    int font_size = 30;
-    int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
-    void* title = create_text(window, font_path, title_text, font_size,
-                              (800 - text_width) / 2, (font_size) / 2,
-                              255, 255, 255);
-    if (!title) {
-        printf("Failed to create title text.\n");
+    // 加載圖片
+    const char* image_path = "Title.png"; // 圖片路徑
+    void* image = load_image(image_path);
+    if (!image) {
+        printf("Failed to load image: %s\n", image_path);
         close_window(window);
         return -1;
     }
 
-	xchg_data(stdin, sockfd, window, title);		/* do it all */
 
+	xchg_data(stdin, sockfd, window, image);		/* do it all */
+	delete_image(image);
+    close_window(window);
 	exit(0);
 }

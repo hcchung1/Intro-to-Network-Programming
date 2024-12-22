@@ -8,6 +8,9 @@ extern "C" {
 std::map<void*, sf::RenderWindow*> windows;
 std::map<void*, sf::Text*> texts;
 std::map<void*, sf::Font*> fonts;
+// 存儲紋理與精靈的全局變數
+std::map<void*, sf::Texture*> textures;
+std::map<void*, sf::Sprite*> sprites;
 
 // 創建視窗
 void* create_window(int width, int height, const char* title) {
@@ -81,4 +84,43 @@ void poll_events(void* window) {
     }
 }
 
+
+
+// 加載圖片並創建 Sprite
+void* load_image(const char* image_path) {
+    sf::Texture* texture = new sf::Texture();
+    if (!texture->loadFromFile(image_path)) {
+        delete texture;
+        return nullptr;
+    }
+
+    sf::Sprite* sprite = new sf::Sprite();
+    sprite->setTexture(*texture);
+
+    // 儲存到全局變數
+    textures[sprite] = texture;
+    sprites[sprite] = sprite;
+
+    return static_cast<void*>(sprite);
+}
+
+// 繪製圖片
+void draw_image(void* window, void* image, int x, int y) {
+    sf::RenderWindow* win = static_cast<sf::RenderWindow*>(window);
+    sf::Sprite* sprite = static_cast<sf::Sprite*>(image);
+    sprite->setPosition(x, y);
+    win->draw(*sprite);
+}
+
+// 刪除圖片資源
+void delete_image(void* image) {
+    sf::Sprite* sprite = static_cast<sf::Sprite*>(image);
+    sf::Texture* texture = textures[sprite];
+
+    textures.erase(sprite);
+    sprites.erase(sprite);
+
+    delete sprite;
+    delete texture;
+}
 }
