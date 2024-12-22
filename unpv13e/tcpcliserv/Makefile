@@ -5,9 +5,17 @@ PROGS =	ass6cli ass6serv24 tcpcli01 tcpcli04 tcpcli05 tcpcli06 \
 		tcpserv01 tcpserv02 tcpserv03 tcpserv04 \
 		tcpserv08 tcpserv09 tcpservselect01 tcpservpoll01 tsigpipe
 
-all:	${PROGS}
-ass6cli:	ass6cli.o
-		${CC} ${CFLAGS} -o $@ ass6cli.o ${LIBS}
+SFML_SRC = sfml_wrapper.cpp
+SFML_OBJ = sfml_wrapper.o
+SFML_LIBS = -lsfml-graphics -lsfml-window -lsfml-system -lstdc++
+
+all:	${SFML_OBJ} ${PROGS}
+
+${SFML_OBJ}: ${SFML_SRC}
+		g++ ${CFLAGS} -c ${SFML_SRC} -o ${SFML_OBJ} ${SFML_LIBS}
+
+ass6cli:	ass6cli.o ${SFML_OBJ}
+		${CC} ${CFLAGS} -o $@ ass6cli.o ${SFML_OBJ} ${LIBS} ${SFML_LIBS}
 
 ass6serv24:	ass6serv24.o
 		${CC} ${CFLAGS} -o $@ ass6serv24.o ${LIBS}
@@ -69,4 +77,4 @@ tsigpipe:	tsigpipe.o
 		${CC} ${CFLAGS} -o $@ tsigpipe.o ${LIBS}
 
 clean:
-		rm -f ${PROGS} ${CLEANFILES}
+		rm -f ${PROGS} ${SFML_OBJ} ${CLEANFILES}
