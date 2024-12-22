@@ -181,6 +181,33 @@ int main(int argc, char **argv){
 	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
 	printf("Connected to server successfully!\n");
 
+	// SFML
+    sf::RenderWindow window(sf::VideoMode(800, 600), "Client");
+    sf::Font font;
+    if (!font.loadFromFile("Arial.ttf")) { // 確保字體文件存在
+        printf("Error loading font!\n");
+        return -1;
+    }
+
+    sf::Text title("Welcome to the Client!", font, 30); // 標題文字
+    title.setPosition(400 - title.getLocalBounds().width / 2, 50); // 放置在視窗上方中央
+    title.setFillColor(sf::Color::White);                         // 文字顏色
+
+    // 主循環
+    while (window.isOpen()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
+                window.close();
+            }
+        }
+
+        // 清除並繪製視窗內容
+        window.clear(sf::Color::Black); // 背景顏色
+        window.draw(title);             // 繪製標題
+        window.display();
+    }
+
 	xchg_data(stdin, sockfd);		/* do it all */
 
 	exit(0);
