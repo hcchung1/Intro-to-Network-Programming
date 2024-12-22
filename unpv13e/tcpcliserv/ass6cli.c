@@ -106,19 +106,23 @@ void xchg_data(FILE *fp, int sockfd)
 				// bzero(recvline, MAXLINE);
 				// printf("%d\n", stage);
 				// fflush(stdout);
-				if(stage == 0 && strcmp(recvline, "Enter your name: \n") == 0){
-					printf("%d Enter your name: \n", stage);
-					stage++;
-				} else if(stage == 2 && strcmp(recvline, "Enter room number (1-5):\n") == 0){
+				if(strcmp(recvline, "Enter your name: \n") == 0){
+					printf("Enter your name: \n");
+					/* 
+					 * SFML
+					 */
+				} else if(strcmp(recvline, "Enter room number (1-5):\n") == 0){
 					
-					printf("Enter room number (1-5): ");
-					stage++;
+					printf("Enter room number (1-5): \n");
+					/* 
+					 * SFML
+					 */
 					
-				} else if(stage == 4){
-					if(strcmp(recvline, "Sys: Make command now!\n") == 0){
-						printf("Enter command: ");
-						stage++;
-					}
+				} else if(strcmp(recvline, "Sys: Make command now!\n") == 0){
+					printf("Enter command: \n");
+					/* 
+					 * SFML
+					 */
 				} else if(stage == 5){
 					if(strcmp(recvline, "Sys: Waiting for the result...\n") == 0){
 						printf("Waiting for the result...\n");
@@ -148,28 +152,7 @@ void xchg_data(FILE *fp, int sockfd)
 					stdineof = 1;
 					Shutdown(sockfd, SHUT_WR);      /* send FIN */
 				};
-            }
-			else {
-				// printf("stdin ");
-				// if(stage == 1){
-				// 	// send ID
-				// 	sprintf(sendline, "User name: %s\n", id);
-				// 	printf("sent: %s", sendline);
-				// 	Writen(sockfd, sendline, strlen(sendline));
-				// 	stage++;
-				// }else if(stage == 3){
-				// 	// send room number
-				// 	printf("sent: %s", sendline);
-				// 	Writen(sockfd, sendline, strlen(sendline));
-				// 	stage++;
-				// } else if(stage == 5){
-				// 	// make command
-				// 	printf("sent: %s", sendline);
-				// 	Writen(sockfd, sendline, strlen(sendline));
-				// 	stage = 4;
-				// } else {
-				// 	printf("Please wait for the server to send you a message.\n");
-				// }
+            }else {
 				sendline[strlen(sendline)-1] = '\0';
 				Writen(sockfd, sendline, strlen(sendline));
 				printf("sent: %s\n", sendline);
