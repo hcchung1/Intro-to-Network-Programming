@@ -122,9 +122,10 @@ void xchg_data(FILE *fp, int sockfd)
     //     }
     // }
 	
-
+	bool first = false;
 
     for ( ; ; ) {	
+		if(!first) {printf("firsttime\n"); first = true;};
 		FD_ZERO(&rset);
 		maxfdp1 = 0;
         if (stdineof == 0) {
