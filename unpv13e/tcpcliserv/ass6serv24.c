@@ -271,7 +271,8 @@ void *handle_client(void *client_socket) {
         // 廣播玩家加入的訊息
         snprintf(buffer, sizeof(buffer), "%s has joined the room! We now have %d player(s) in the room!\n",
                  client_name, room_client_count[room_number]);
-        broadcast_message(room_number, buffer, -1);
+        Write(client_fd, buffer, strlen(buffer));
+        // broadcast_message(room_number, buffer, -1);
 
         if (room_client_count[room_number] == 1) {
             pthread_mutex_unlock(&room_locks[room_number]);
