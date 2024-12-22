@@ -51,7 +51,7 @@ void set_scr() {		// set screen to 80 * 25 color mode
 	printf("\x1B[=3h");
 };
 
-void xchg_data(FILE *fp, int sockfd)
+void xchg_data(FILE *fp, int sockfd, void* window, void* title)
 {
     int       maxfdp1, stdineof, peer_exit, n;
     fd_set    rset;
@@ -73,12 +73,14 @@ void xchg_data(FILE *fp, int sockfd)
 	bool first = false;
 	peer_exit = 0;
 	stdineof = 0;
-	poll_events(window);
+	clear_window(window, 0, 0, 0); // 黑色背景
+	draw_text(window, title);      // 繪製標題
+	display_window(window);        // 顯示內容
 
-    for ( ; ; ) {
-
-		poll_events(window);	
+    for ( ; ; ) {	
 		// if(!first) {printf("firsttime\n"); first = true;};
+
+		poll_events(window);
 		FD_ZERO(&rset);
 		maxfdp1 = 0;
         if (stdineof == 0) {
@@ -165,7 +167,15 @@ void xchg_data(FILE *fp, int sockfd)
 				bzero(recvline, MAXLINE);
 			};
         }
+		// 清除背景並繪製內容
+        clear_window(window, 0, 0, 0); // 黑色背景
+        draw_text(window, title);      // 繪製標題
+        display_window(window);        // 顯示內容
+
+        usleep(16000); // 模擬 60 FPS
     }
+
+
 };
 
 int main(int argc, char **argv){
@@ -195,7 +205,7 @@ int main(int argc, char **argv){
 
     // 創建標題，並放置在視窗正中間
     const char* font_path = "Arial.ttf"; // 字體路徑
-    const char* title_text = "Welcome to the Client!";
+    const char* title_text = "印加寶藏";
     int font_size = 30;
     int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
     void* title = create_text(window, font_path, title_text, font_size,
@@ -206,8 +216,8 @@ int main(int argc, char **argv){
         close_window(window);
         return -1;
     }
-	
-	xchg_data(stdin, sockfd);		/* do it all */
+
+	xchg_data(stdin, sockfd, window, title);		/* do it all */
 
 	exit(0);
 }
