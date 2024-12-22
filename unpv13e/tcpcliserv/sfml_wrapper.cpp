@@ -71,4 +71,13 @@ void delete_text(void* text) {
     delete font;
 }
 
+void poll_event(void* window) {
+    sf::RenderWindow* win = static_cast<sf::RenderWindow*>(window);
+    sf::Event event;
+    while (win->pollEvent(event)) {
+        if (event.type == sf::Event::Closed) {
+            win->close();
+        }
+    }
+}
 }

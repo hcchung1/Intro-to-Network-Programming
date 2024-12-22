@@ -15,8 +15,10 @@ extern void* create_window(int width, int height, const char* title);
 extern void clear_window(void* window, int r, int g, int b);
 extern void display_window(void* window);
 extern void close_window(void* window);
-extern int is_window_open(void* window);
-extern int poll_event(void* window);
+extern void* create_text(void* window, const char* font_path, const char* text, int size, int x, int y, int r, int g, int b);
+extern void draw_text(void* window, void* text);
+extern void delete_text(void* text);
+extern void poll_events(void* window);
 
 // 定義房間結構
 typedef struct Room {
@@ -71,8 +73,11 @@ void xchg_data(FILE *fp, int sockfd)
 	bool first = false;
 	peer_exit = 0;
 	stdineof = 0;
+	poll_events(window);
 
-    for ( ; ; ) {	
+    for ( ; ; ) {
+
+		poll_events(window);	
 		// if(!first) {printf("firsttime\n"); first = true;};
 		FD_ZERO(&rset);
 		maxfdp1 = 0;
@@ -181,33 +186,27 @@ int main(int argc, char **argv){
 	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
 	printf("Connected to server successfully!\n");
 
-	// SFML
-    sf::RenderWindow window(sf::VideoMode(800, 600), "Client");
-    sf::Font font;
-    if (!font.loadFromFile("Arial.ttf")) { // 確保字體文件存在
-        printf("Error loading font!\n");
+	// 創建 SFML 視窗
+    void* window = create_window(800, 600, "Client Window");
+    if (!window) {
+        printf("Failed to create SFML window.\n");
         return -1;
     }
 
-    sf::Text title("Welcome to the Client!", font, 30); // 標題文字
-    title.setPosition(400 - title.getLocalBounds().width / 2, 50); // 放置在視窗上方中央
-    title.setFillColor(sf::Color::White);                         // 文字顏色
-
-    // 主循環
-    while (window.isOpen()) {
-        sf::Event event;
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
-                window.close();
-            }
-        }
-
-        // 清除並繪製視窗內容
-        window.clear(sf::Color::Black); // 背景顏色
-        window.draw(title);             // 繪製標題
-        window.display();
+    // 創建標題，並放置在視窗正中間
+    const char* font_path = "Arial.ttf"; // 字體路徑
+    const char* title_text = "Welcome to the Client!";
+    int font_size = 30;
+    int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+    void* title = create_text(window, font_path, title_text, font_size,
+                              (800 - text_width) / 2, (600 - font_size) / 2,
+                              255, 255, 255);
+    if (!title) {
+        printf("Failed to create title text.\n");
+        close_window(window);
+        return -1;
     }
-
+	
 	xchg_data(stdin, sockfd);		/* do it all */
 
 	exit(0);
