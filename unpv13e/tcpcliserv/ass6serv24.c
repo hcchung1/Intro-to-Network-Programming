@@ -275,7 +275,7 @@ void proceed_next_step(int room_number)
     }
 
     // 廣播：進入這個 step
-    snprintf(sendline, sizeof(sendline), "Step:%d ",room_state[room_number].current_step);
+    snprintf(sendline, sizeof(sendline), "Step:%d\n",room_state[room_number].current_step);
     broadcast_message(room_number, sendline, -1);
     // snprintf(sendline, sizeof(sendline), 
     //          "Round %d, Step %d\n",
