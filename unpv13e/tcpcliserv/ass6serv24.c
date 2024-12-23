@@ -330,7 +330,7 @@ void proceed_next_step(int room_number)
                 for (int j = 0; j < room_client_count[room_number]; j++) {
                     if (room_state[room_number]. decisions[j] == 'N' || room_state[room_number].decisions[j] == '\0') {
                     room_state[room_number].tempcoin[j] = 0;
-                    snprintf(sendline, sizeof(sendline), "%s went home wuth nothing.\n", room_client_names[room_number][j]);
+                    snprintf(sendline, sizeof(sendline), "%s went home with nothing.\n", room_client_names[room_number][j]);
                     broadcast_message(room_number, sendline, -1);
                     }
                 }
@@ -375,12 +375,26 @@ void finalize_step_decisions(int room_number)
     // (1) 根據每個玩家 'Y' or 'N' 來決定去留
     //     'Y' -> 回家: 算分, active_player_count--
     //     'N' -> 繼續探險
+    int go_back = 0;
+    int single = 0;
     for (int i = 0; i < room_client_count[room_number]; i++) {
         if (st->decisions[i] == 'Y') {
-            // 幫他結算分數
-            // st->scores[i] += ...
-            // 廣播
-            st->scores[i] += st->tempcoin[i];
+            go_back += 1;
+        }
+
+    }
+    if (go_back == 1) {
+        single = 1;
+    }
+    for (int i = 0; i < room_client_count[room_number]; i++) {
+        if (st->decisions[i] == 'Y') {
+            // 結算分數
+            st->scores[i] += st->tempcoin[i] + (st->leftcoin / go_back);
+            for (int j = 0; j < 5; j++) {
+                if (st->appear[j] && single == 1) {
+                    st->scores[i] += treasure_value[j];
+                }
+            }
             st->this_round[i] = 0;
             snprintf(sendline, sizeof(sendline), "%s went home with score: %d\n",
                      room_client_names[room_number][i],
@@ -631,7 +645,9 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd) {
                 ready_status[room_number][i] = 0;
                 stage[room_clients[room_number][i]] = STAGE_RUNNING;
             }
-            
+            snprintf(sendline, sizeof(sendline), "Game in room %d has started! Prepare to explore!\n",
+                     room_number + 1);
+            broadcast_message(room_number, sendline, -1);
             start_game(room_number);
         } else {
             // 其他玩家的訊息就廣播給房間
