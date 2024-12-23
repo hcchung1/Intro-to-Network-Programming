@@ -289,9 +289,12 @@ void proceed_next_step(int room_number)
         // gems
         snprintf(sendline, sizeof(sendline), "----Discovered %d gems!----\n", draw);
         broadcast_message(room_number, sendline, -1);
-        while ((draw / room_client_count[room_number])> 0) {
+        while ((draw / room_client_count[room_number]) > 0) {
             for (int i = 0; i < room_client_count[room_number]; i++) {
-                room_state[room_number].tempcoin[i] += 1;
+                if (room_state[room_number].this_round[i] == 1) {
+                    room_state[room_number].tempcoin[i] += 1;
+                    draw -= 1;
+                }
             }
         }
         room_state[room_number].leftcoin += draw;
