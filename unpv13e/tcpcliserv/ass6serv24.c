@@ -224,6 +224,7 @@ void end_current_round(int room_number)
     st->current_round++;
     st->current_step = 0;
     st->leftcoin = 0;
+    st->active_player_count = room_client_count[room_number];
     
     for (int i = 0; i < 5; i++) {
         st->tragedy[i] = 0;
