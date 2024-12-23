@@ -621,9 +621,14 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd) {
     /* --------------- 房間操作階段 --------------- */
     case STAGE_ROOM_OPERATION: {
         // 如果是房主，可能在這裡檢查一些命令，如「開始遊戲」之類
+        readline[strcspn(readline, "\n")] = '\0';
         if (client_fd == room_host[room_number]) {
-            // 你可以在這裡或別處加上命令判斷
-            // e.g. if (strcasecmp(readline, "start") == 0) start_game(room_number);
+            for (int i = 0; i < room_client_count[room_number]; i++) {
+                ready_status[room_number][i] = 0;
+                stage[room_clients[room_number][i]] = STAGE_RUNNING;
+            }
+            
+            start_game(room_number);
         } else {
             // 其他玩家的訊息就廣播給房間
             snprintf(sendline, sizeof(sendline), "%s: %s\n",
