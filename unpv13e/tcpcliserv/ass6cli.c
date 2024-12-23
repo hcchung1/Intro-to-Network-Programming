@@ -650,8 +650,8 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			draw_text(window, title);
 
 			// 創建兩個圓形按鈕
-			void* leave_button = create_circle_button(700, 250, 20, 255, 0, 0); // 紅色圓形按鈕
-			void* stay_button = create_circle_button(700, 300, 20, 0, 255, 0); // 綠色圓形按鈕
+			void* leave_button = create_circle_button(700, 225, 35, 255, 0, 0); // 紅色圓形按鈕
+			void* stay_button = create_circle_button(700, 400, 35, 0, 255, 0); // 綠色圓形按鈕
 			draw_circle_button(window, leave_button);
 			draw_circle_button(window, stay_button);
 
@@ -659,16 +659,16 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			font_size = 20;
 			text_width = strlen(title_text) * font_size / 2;
 			title = create_text(window, font_path, title_text, font_size,
-									700 - text_width / 2, 300 - font_size / 2,
-									255, 255, 255);
+									700 - text_width / 2, 400 - font_size / 2,
+									0, 0, 0);
 			draw_text(window, title);
 
 			title_text = "Stay";
 			font_size = 20;
 			text_width = strlen(title_text) * font_size / 2;
 			title = create_text(window, font_path, title_text, font_size,
-									700 - text_width / 2, 250 - font_size / 2,
-									255, 255, 255);
+									700 - text_width / 2, 225 - font_size / 2,
+									0, 0, 0);
 			draw_text(window, title);
 
 			delete_text(title);
@@ -762,31 +762,52 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				return;
 			}
 			draw_text(window, title);
+			const char* image_path;
 			switch(scr.obs.wh){
 				case 1:
 					sprintf(title_text, "Discovered %d gems!", scr.obs.num);
+					// put picture gem.jpg
+					image_path = "gem.png"; // 圖片路徑
+					
 					break;
 				case 2:
 					sprintf(title_text, "----TRAGEDY1:SNAKE----");
+					image_path = "snake.png"; // 圖片路徑
 					break;
 				case 3:
 					sprintf(title_text, "----TRAGEDY2:ROCKS----");
+					image_path = "rocks.png"; // 圖片路徑
 					break;
 				case 4:
 					sprintf(title_text, "----TRAGEDY3:FIRE----");
+					image_path = "fire.png"; // 圖片路徑
 					break;
 				case 5:
 					sprintf(title_text, "----TRAGEDY4:SPIDERS----");
+					image_path = "spider.png"; // 圖片路徑
 					break;
 				case 6:
 					sprintf(title_text, "----TRAGEDY5:ZOMBIES----");
+					image_path = "zombie.png"; // 圖片路徑
 					break;
 				case 7:
 					sprintf(title_text, "A treasure!!! Value = %d.", scr.obs.num);
+					char temp[256];
+					sprintf(temp, "%d_point.jpg", scr.obs.num);
+					image_path = temp; // 圖片路徑
 					break;
 				default:
 					break;
 			}
+
+			void* image = load_image(image_path);
+			if (!image) {
+				printf("Failed to load image: %s\n", image_path);
+				close_window(window);
+				return;
+			}
+			draw_image(window, image, 0, 200);
+			delete_image(image);
 
 			text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
 			title = create_text(window, font_path, title_text, font_size,
