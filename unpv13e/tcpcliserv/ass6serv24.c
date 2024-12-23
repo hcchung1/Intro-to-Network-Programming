@@ -222,6 +222,18 @@ void end_current_round(int room_number)
 
     st->current_round++;
     st->current_step = 0;
+    st->leftcoin = 0;
+    
+    for (int i = 0; i < 5; i++) {
+        st->tragedy[i] = 0;
+        st->appear[i] = 0;
+    }
+
+    for (int i = 0; i < room_client_count[room_number]; i++) {
+        st->decisions[i] = '\0'; // 尚未決定
+        st->tempcoin[i] = 0;   
+    }
+    
 
     if (st->current_round > st->total_rounds) {
         broadcast_message(room_number, "All rounds done! Game Over.\n", -1);
