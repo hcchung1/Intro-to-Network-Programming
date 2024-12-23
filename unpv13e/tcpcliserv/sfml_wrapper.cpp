@@ -11,6 +11,8 @@ std::map<void*, sf::Font*> fonts;
 // 存儲紋理與精靈的全局變數
 std::map<void*, sf::Texture*> textures;
 std::map<void*, sf::Sprite*> sprites;
+// 使用全局容器管理多個按鈕（方格）
+std::map<void*, sf::RectangleShape*> buttons;
 
 // 創建視窗
 void* create_window(int width, int height, const char* title) {
@@ -123,4 +125,74 @@ void delete_image(void* image) {
     delete sprite;
     delete texture;
 }
+
+// 繪製矩形
+void draw_rectangle(void* window, int x, int y, int width, int height, int r, int g, int b) {
+    sf::RenderWindow* win = static_cast<sf::RenderWindow*>(window);
+    sf::RectangleShape rectangle(sf::Vector2f(width, height));
+    rectangle.setPosition(x, y);
+    rectangle.setFillColor(sf::Color(r, g, b));
+    win->draw(rectangle);
+}
+
+// 創建按鈕
+void* create_button(int x, int y, int width, int height, int r, int g, int b) {
+    sf::RectangleShape* button = new sf::RectangleShape(sf::Vector2f(width, height));
+    button->setPosition(x, y);
+    button->setFillColor(sf::Color(r, g, b));
+    buttons[button] = button;
+    return static_cast<void*>(button);
+}
+
+// 繪製按鈕
+void draw_button(void* window, void* button) {
+    sf::RenderWindow* win = static_cast<sf::RenderWindow*>(window);
+    sf::RectangleShape* btn = static_cast<sf::RectangleShape*>(button);
+    win->draw(*btn);
+}
+
+void* detect_clicked_button(void* window, int mouse_x, int mouse_y) {
+    for (auto& [key, button] : buttons) {
+        if (button->getGlobalBounds().contains(mouse_x, mouse_y)) {
+            return key; // 返回被點擊的按鈕
+        }
+    }
+    return nullptr; // 沒有按鈕被點擊
+}
+
+// 檢查按鈕點擊
+int is_button_clicked(void* window, void* button, int mouse_x, int mouse_y) {
+    sf::RectangleShape* btn = static_cast<sf::RectangleShape*>(button);
+    sf::FloatRect bounds = btn->getGlobalBounds();
+    return bounds.contains(mouse_x, mouse_y);
+}
+
+// 刪除按鈕
+void delete_button(void* button) {
+    auto it = buttons.find(button);
+    if (it != buttons.end()) {
+        delete it->second;
+        buttons.erase(it);
+    }
+}
+
+// 獲取滑鼠的 X 座標
+int get_mouse_position_x(void* window) {
+    sf::RenderWindow* win = static_cast<sf::RenderWindow*>(window);
+    sf::Vector2i position = sf::Mouse::getPosition(*win);
+    return position.x;
+}
+
+// 獲取滑鼠的 Y 座標
+int get_mouse_position_y(void* window) {
+    sf::RenderWindow* win = static_cast<sf::RenderWindow*>(window);
+    sf::Vector2i position = sf::Mouse::getPosition(*win);
+    return position.y;
+}
+
+// 檢測滑鼠左鍵是否被按下
+int is_mouse_button_pressed() {
+    return sf::Mouse::isButtonPressed(sf::Mouse::Left) ? 1 : 0;
+}
+
 }
