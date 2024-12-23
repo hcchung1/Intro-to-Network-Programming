@@ -74,6 +74,7 @@ typedef struct {
     /* 例如: 紀錄玩家當前回家/繼續的選擇 */
     char decisions[MAX_CLIENTS_PER_ROOM]; // 'Y'/'N' 或 '\0'
     int  active_player_count; // 還留在探險的玩家人數
+    int this_round[MAX_CLIENTS_PER_ROOM];
 
     /* 你想追蹤的其他狀態，例如: 分數、寶物數量、等等... */
     int scores[MAX_CLIENTS_PER_ROOM];
@@ -232,6 +233,7 @@ void end_current_round(int room_number)
     for (int i = 0; i < room_client_count[room_number]; i++) {
         st->decisions[i] = '\0'; // 尚未決定
         st->tempcoin[i] = 0;   
+        st->this_round[i] = 1;
     }
     
 
@@ -294,22 +296,28 @@ void proceed_next_step(int room_number)
         }
         room_state[room_number].leftcoin += draw;
         snprintf(sendline, sizeof(sendline), "%d gem(s) left on the floor.\n", room_state[room_number].leftcoin);
+        broadcast_message(room_number, sendline, -1);
     } else if (draw < 0) {
         // 災難
         if (draw == -1) {
             snprintf(sendline, sizeof(sendline), "----TRAGEDY1:SNAKE----\n");
+            broadcast_message(room_number, sendline, -1);
             room_state[room_number].tragedy[0] += 1;
         } else if (draw == -2) {
             snprintf(sendline, sizeof(sendline), "----TRAGEDY2:ROCKS----\n");
+            broadcast_message(room_number, sendline, -1);
             room_state[room_number].tragedy[1] += 1;
         } else if (draw == -3) {
             snprintf(sendline, sizeof(sendline), "----TRAGEDY3:FIRE----\n");
+            broadcast_message(room_number, sendline, -1);
             room_state[room_number].tragedy[2] += 1;
         } else if (draw == -4) {
             snprintf(sendline, sizeof(sendline), "----TRAGEDY4:SPIDERS----\n");
+            broadcast_message(room_number, sendline, -1);
             room_state[room_number].tragedy[3] += 1;
         } else if (draw == -5) {
             snprintf(sendline, sizeof(sendline), "----TRAGEDY5:ZOMBIES----\n");
+            broadcast_message(room_number, sendline, -1);
             room_state[room_number].tragedy[4] += 1;
         }
 
@@ -319,6 +327,7 @@ void proceed_next_step(int room_number)
                     if (room_state[room_number]. decisions[j] == 'N' || room_state[room_number].decisions[j] == '\0') {
                     room_state[room_number].tempcoin[j] = 0;
                     snprintf(sendline, sizeof(sendline), "%s went home wuth nothing.\n", room_client_names[room_number][j]);
+                    broadcast_message(room_number, sendline, -1);
                     }
                 }
                 end_current_round(room_number);
@@ -328,9 +337,8 @@ void proceed_next_step(int room_number)
         // 神器 appear
         room_state[room_number].appear[draw - 100] = 1;
         snprintf(sendline, sizeof(sendline), "WOW! It's a treasure!!! Value: {%d}.\nREMEMBER: ONLY ONE person can bring it back...\n", treasure_value[draw - 100]);
+        broadcast_message(room_number, sendline, -1);
     }
-    broadcast_message(room_number, sendline, -1);
-
 
     // (3) 檢查是否立即結束(例如：所有人都掛了)
 
@@ -339,13 +347,16 @@ void proceed_next_step(int room_number)
     room_state[room_number].step_status = 1; // e.g. WAITING_FOR_DECISION
     room_state[room_number].reply_count = 0;
     for (int i = 0; i < room_client_count[room_number]; i++) {
-        room_state[room_number].decisions[i] = '\0'; 
+        if (room_state[room_number].this_round[i] == 1) {
+            room_state[room_number].decisions[i] = '\0';
+        }
     }
     // snprintf(sendline, sizeof(sendline), "%d gem(s) left on the floor.\n", leftcoin);
     //         broadcast_message(room_number, sendline, -1);
     // 廣播：「請在 60s 內輸入 y/n：要不要回家」
     snprintf(sendline, sizeof(sendline), 
              "NOW, it's time to make a decision...Do you want to go home or stay? (y/n)\n");
+    
     broadcast_message(room_number, sendline, -1);
 
     // 記錄開始等待的時間
@@ -354,6 +365,7 @@ void proceed_next_step(int room_number)
 
 void finalize_step_decisions(int room_number)
 {
+    
     RoomState *st = &room_state[room_number];
     char sendline[128];
     // (1) 根據每個玩家 'Y' or 'N' 來決定去留
@@ -365,7 +377,7 @@ void finalize_step_decisions(int room_number)
             // st->scores[i] += ...
             // 廣播
             st->scores[i] += st->tempcoin[i];
-            
+            st->this_round[i] = 0;
             snprintf(sendline, sizeof(sendline), "%s went home with score: %d\n",
                      room_client_names[room_number][i],
                      st->scores[i]);
@@ -418,6 +430,7 @@ void start_game(int room_number) {
         room_state[room_number].decisions[i] = '\0'; // 尚未決定
         room_state[room_number].scores[i]    = 0; 
         room_state[room_number].tempcoin[i] = 0;   
+        room_state[room_number].this_round[i] = 1;
     }
     proceed_next_step(room_number);
 }
@@ -745,6 +758,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd) {
             // 如果所有「還在探險的玩家」都回覆了，或 st->reply_count == st->active_player_count
             if (st->reply_count == st->active_player_count) {
                 // 全員回覆完成 -> 進行結算
+                st->step_status == 0;
                 finalize_step_decisions(room_number);
             } 
             else {
