@@ -21,6 +21,7 @@
 #define STAGE_SET_ROUNDS 3
 #define STAGE_ROOM_OPERATION 4
 #define STAGE_READY 5
+#define STAGE_RUNNING 6
 
 // 客戶端名稱存儲
 char client_names[MAX_CLIENTS][MAX_NAME_LENGTH];
@@ -36,6 +37,10 @@ int room_host[MAX_ROOMS];
 int room_rounds[MAX_ROOMS];
 int ready_status[MAX_ROOMS][MAX_CLIENTS_PER_ROOM];
 
+char player_choices[MAX_ROOMS][MAX_CLIENTS_PER_ROOM];
+int reply[MAX_ROOMS][MAX_CLIENTS_PER_ROOM];
+int enable = 0;
+
 // 初始化房間設置
 void initialize_rooms() {
     for (int i = 0; i < MAX_ROOMS; i++) {
@@ -48,6 +53,8 @@ void initialize_rooms() {
             room_clients[i][j] = -1;
             room_client_names[i][j][0] = '\0';
             ready_status[i][j] = 0;
+            player_choices[i][j] = 'y';
+            reply[i][j] = 0;
         }
     }
 
@@ -156,13 +163,7 @@ void start_game(int room_number) {
         broadcast_message(room_number, buffer, -1);
         int r = 0;
         int failed = 0;
-        while ((clock() - start_time) < CLOCKS_PER_SEC) {
-        // 持續等待，直到經過 1 秒
-        }
         while (remaining_players != 0) {
-            while ((clock() - start_time) < CLOCKS_PER_SEC) {
-            // 持續等待，直到經過 1 秒
-            }
             r++;
             snprintf(buffer, sizeof(buffer), "Step:%d  ", r);
             broadcast_message(room_number, buffer, -1);
@@ -219,9 +220,6 @@ void start_game(int room_number) {
                 broadcast_message(room_number, buffer, -1);
             }
 
-            while ((clock() - start_time) < CLOCKS_PER_SEC) {
-            // 持續等待，直到經過 1 秒
-            }
 
             for (int i = 0; i < room_max_players[room_number]; i++) {
                 if (adv_status[i] == 1) {
@@ -240,45 +238,59 @@ void start_game(int room_number) {
             snprintf(buffer, sizeof(buffer), "NOW, it's time to make a decision...Do you want to go home or stay? (y/n)\n");
             broadcast_message(room_number, buffer, -1);
             
-
+            enable = 1;
             // 設定回覆的超時時間
             const int TIMEOUT_SECONDS = 120;
-            char player_choices[room_max_players[room_number]];
-
-            for (int i = 0; i < room_max_players[room_number]; i++) {
-                if (adv_status[i] == 1) {
-                    snprintf(buffer, sizeof(buffer), "%s, do you want to go home or stay? (y/n):\n", room_client_names[room_number][i]);
-                    write(room_clients[room_number][i], buffer, strlen(buffer));
-
-                    // 開始計時
-                    time_t start_time = time(NULL);
-                    int bytes_read;
-                    while (1) {
-                        // 嘗試讀取回覆
-                        bytes_read = read(room_clients[room_number][i], buffer, sizeof(buffer) - 1);
-                        if (bytes_read > 0) {
-                            buffer[bytes_read] = '\0'; // 確保字串以 NULL 結尾
-                            player_choices[i] = buffer[0]; // 暫存玩家選擇
-                            break;
-                        }
-
-                        // 檢查是否超時
-                        if (difftime(time(NULL), start_time) > TIMEOUT_SECONDS) {
-                            player_choices[i] = 'N'; // 超時視為回家
-                            snprintf(buffer, sizeof(buffer), "%s did not respond in time and is assumed to have gone home.\n", room_client_names[room_number][i]);
-                            broadcast_message(room_number, buffer, -1);
-                            break;
-                        }
+            time_t start_time = time(NULL);
+            int all_reply = 1;
+            while (difftime(time(NULL), start_time) < TIMEOUT_SECONDS) {
+                for (int i = 0; i < room_max_players[room_number]; i++) {
+                    if (reply[room_number][i] == 0) {
+                        all_reply == 0;
                     }
+                }
+
+                if (all_reply == 1) {
+                    break;
                 } else {
-                    player_choices[i] = 'N'; // 已回家的玩家默認為 N
+                    all_reply = 1;
                 }
             }
+            
+            // for (int i = 0; i < room_max_players[room_number]; i++) {
+            //     if (adv_status[i] == 1) {
+            //         snprintf(buffer, sizeof(buffer), "%s, do you want to go home or stay? (y/n):\n", room_client_names[room_number][i]);
+            //         write(room_clients[room_number][i], buffer, strlen(buffer));
+
+            //         // 開始計時
+            //         time_t start_time = time(NULL);
+            //         int bytes_read;
+            //         while (1) {
+            //             // 嘗試讀取回覆
+            //             bytes_read = read(room_clients[room_number][i], buffer, sizeof(buffer) - 1);
+            //             if (bytes_read > 0) {
+            //                 buffer[bytes_read] = '\0'; // 確保字串以 NULL 結尾
+            //                 player_choices[i] = buffer[0]; // 暫存玩家選擇
+            //                 break;
+            //             }
+
+            //             // 檢查是否超時
+            //             if (difftime(time(NULL), start_time) > TIMEOUT_SECONDS) {
+            //                 player_choices[i] = 'N'; // 超時視為回家
+            //                 snprintf(buffer, sizeof(buffer), "%s did not respond in time and is assumed to have gone home.\n", room_client_names[room_number][i]);
+            //                 broadcast_message(room_number, buffer, -1);
+            //                 break;
+            //             }
+            //         }
+            //     } else {
+            //         player_choices[i] = 'N'; // 已回家的玩家默認為 N
+            //     }
+            // }
 
             // 公布所有玩家的選擇並更新狀態
             for (int i = 0; i < room_max_players[room_number]; i++) {
                 if (adv_status[i] == 1) {
-                    if (player_choices[i] == 'N' || player_choices[i] == 'n') {
+                    if (player_choices[room_number][i] == 'N' || player_choices[room_number][i] == 'n') {
                         adv_status[i] = 0; // 玩家選擇回家
                         snprintf(buffer, sizeof(buffer), "%s has chosen to go home.\n", room_client_names[room_number][i]);
                         broadcast_message(room_number, buffer, -1);
@@ -289,6 +301,7 @@ void start_game(int room_number) {
                 }
             }
 
+            enable = 0;
             // 更新剩餘玩家數量
             remaining_players = 0;
             for (int i = 0; i < room_max_players[room_number]; i++) {
@@ -462,31 +475,35 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd) {
             // 房間內操作階段
             if (client_fd == room_host[room_number]) {
                 // 房主等待開始遊戲的指令
-                if (room_max_players[room_number] > 0 && room_rounds[room_number] > 0) {
-                    snprintf(sendline, sizeof(sendline), "All players are ready. Type 'gogo' to start the game.\n");
-                    if (write(client_fd, sendline, strlen(sendline)) < 0) {
-                        perror("Write to client failed");
-                    }
+                while (room_client_count[room_number] != room_max_players[room_number]) {
+
                 }
+                snprintf(sendline, sizeof(sendline), "Room %d is now full! All players, please type 'ok' or 'ready' to prepare:\n", room_number + 1);
+                broadcast_message(room_number, sendline, -1);
+                for (int i = 0; i < room_client_count[room_number]; i++) {
+                    stage[room_clients[room_number][i]] = STAGE_READY; // 切換到準備階段
+                }
+                room_ready[room_number] = 2; // 標記房間已準備
             } else {
                 // 客人可以發送訊息或其他操作
                 printf("room%d: %d/%d people now\n", room_number, room_client_count[room_number], room_max_players[room_number]);
                 snprintf(sendline, sizeof(sendline), "%s: %s\n", client_names[client_fd], readline);
+                broadcast_message(room_number, sendline, client_fd);
                 if (write(client_fd, sendline, strlen(sendline)) < 0) {
                     perror("Write to client failed");
                 }
             }
 
             // 檢查是否達到人數上限
-            if (room_client_count[room_number] == room_max_players[room_number]) {
-                snprintf(sendline, sizeof(sendline), "Room %d is now full! All players, please type 'ok' or 'ready' to prepare.\n", room_number + 1);
-                broadcast_message(room_number, sendline, -1);
-                for (int i = 0; i < room_client_count[room_number]; i++) {
-                    int guest_fd = room_clients[room_number][i];
-                    stage[guest_fd] = STAGE_READY; // 切換到準備階段
-                }
-                room_ready[room_number] = 2; // 標記房間已準備
-            }
+            // if (room_client_count[room_number] == room_max_players[room_number]) {
+            //     snprintf(sendline, sizeof(sendline), "Room %d is now full! All players, please type 'ok' or 'ready' to prepare.\n", room_number + 1);
+            //     broadcast_message(room_number, sendline, -1);
+            //     for (int i = 0; i < room_client_count[room_number]; i++) {
+            //         int guest_fd = room_clients[room_number][i];
+            //         stage[guest_fd] = STAGE_READY; // 切換到準備階段
+            //     }
+            //     room_ready[room_number] = 2; // 標記房間已準備
+            // }
 
         case STAGE_READY:
             // 準備階段
@@ -525,14 +542,14 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd) {
                 // 房主開始遊戲
                 snprintf(sendline, sizeof(sendline), "Game starting now!\n");
                 broadcast_message(room_number, sendline, -1);
-                // 呼叫遊戲開始函數
-                start_game(room_number);
                 // 重置房間為未準備狀態
-                room_ready[room_number] = 1;
+                room_ready[room_number] = 3;
                 for (int i = 0; i < room_client_count[room_number]; i++) {
                     ready_status[room_number][i] = 0;
-                    stage[room_clients[room_number][i]] = STAGE_ROOM_OPERATION;
+                    stage[room_clients[room_number][i]] = STAGE_RUNNING;
                 }
+                // 呼叫遊戲開始函數
+                start_game(room_number);
             } else {
                 snprintf(sendline, sizeof(sendline), "Invalid command. Type 'ok' or 'ready'.\n");
                 if (write(client_fd, sendline, strlen(sendline)) < 0) {
@@ -540,6 +557,29 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd) {
                 }
             }
             break;
+
+        case STAGE_RUNNING:
+            readline[strcspn(readline, "\n")] = '\0';
+            int index = -1;
+            if ((strcasecmp(readline, "Y") == 0 || strcasecmp(readline, "y") == 0 || strcasecmp(readline, "N") == 0 ||strcasecmp(readline, "n") == 0) && enable == 1) {
+                for (int i = 0; i < room_client_count[room_number]; i++) {
+                    if (room_clients[room_number][i] == client_fd) {
+                        index = i;
+                        break;
+                    }
+                }
+
+                if (index != -1) {
+                    player_choices[room_number][index] = readline[0];
+                    reply[room_number][index] = 1;
+                    snprintf(sendline, sizeof(sendline), "%s made the decision for this round.\n", client_names[client_fd]);
+                    broadcast_message(room_number, sendline, client_fd);
+                }
+            } else if (enable == 0) {
+                snprintf(sendline, sizeof(sendline), "Don't reply now.\n", client_names[client_fd]);
+                write(sendline, sizeof(sendline), client_fd);
+            }
+
 
         default:
             // 未定義的階段
