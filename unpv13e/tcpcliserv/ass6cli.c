@@ -110,6 +110,7 @@ typedef struct Screen {
 	int round_now; // current round number
 	int step_now; // current step number
 	Obs obs;
+	bool gameover;
 } screen;
 
 screen scr;
@@ -305,6 +306,13 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 					}
 					else if(strcmp(message, "All players are ready. Type 'gogo' to start the game.") == 0){
 						printf("All players are ready. Type 'gogo' to start the game.\n");
+					}else if(strcmp(message, "All rounds completed. Game Over!") == 0){
+						printf("All rounds completed. Game Over!\n");
+						scr.gameover = true;
+					}
+					else if(strcmp(message, "All rounds done! Game Over.") == 0){
+						printf("Game Over!\n");
+						scr.gameover = true;
 					}
 					else {
 						printf("1%s\n", message);
@@ -826,6 +834,10 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
         display_window(window);  // 顯示內容
 
         usleep(16000); // 模擬 60 FPS
+
+		if(scr.gameover){
+			return;
+		}
     }
 
 
