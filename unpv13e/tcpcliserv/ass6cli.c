@@ -25,6 +25,15 @@ extern void poll_events(void* window);
 extern void* load_image(const char* image_path);
 extern void draw_image(void* window, void* image, int x, int y);
 extern void delete_image(void* image);
+extern void draw_rectangle(void* window, int x, int y, int width, int height, int r, int g, int b);
+extern void* create_button(int x, int y, int width, int height, int r, int g, int b);
+extern void draw_button(void* window, void* button);
+extern void delete_button(void* button);
+extern int is_button_clicked(void* window, void* button, int mouse_x, int mouse_y);
+extern int get_mouse_position_x(void* window);
+extern int get_mouse_position_y(void* window);
+extern int is_mouse_button_pressed();
+extern void* detect_clicked_button(void* window, int mouse_x, int mouse_y);
 
 // 定義房間結構
 typedef struct Room {
@@ -57,15 +66,30 @@ void set_scr() {		// set screen to 80 * 25 color mode
 	printf("\x1B[=3h");
 };
 
+int stage = 0;
+
+typedef struct Screen {
+	char name[128];
+	bool name_ing;
+	bool name_ed;
+	bool room_ing;
+	bool room_ed;
+	bool host[3]; // [0] = ishost, [1] = room number, [2] = round
+	int room_num; // decide which room to join
+} screen;
+
+screen scr;
+
 void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 {
     int       maxfdp1, stdineof, peer_exit, n;
     fd_set    rset;
     char      sendline[MAXLINE], recvline[MAXLINE];
+	char input_buffer[128] = "";
+	int input_len = 0;
 	struct timeval timeout;
-	timeout.tv_sec = TIMEOUT_SEC;
-	timeout.tv_usec = 0;
-	int stage = 0;
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 10000;
 	// stage 0: ID
 	// stage 1: send ID
 	// stage 2: room
@@ -87,6 +111,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 		// if(!first) {printf("firsttime\n"); first = true;};
 
 		poll_events(window);
+		
 		FD_ZERO(&rset);
 		maxfdp1 = 0;
         if (stdineof == 0) {
@@ -99,7 +124,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				maxfdp1 = sockfd;
 		};	
         maxfdp1++;
-        Select(maxfdp1, &rset, NULL, NULL, NULL); // timeout for 20 seconds
+        Select(maxfdp1, &rset, NULL, NULL, &timeout); // timeout for 20 seconds
 		if (FD_ISSET(sockfd, &rset)) {  /* socket is readable */
 			n = read(sockfd, recvline, MAXLINE);
 			if (n == 0) {
@@ -124,13 +149,15 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 					/* 
 					 * SFML
 					 */
+					scr.name_ing = true;
+
 				} else if(strcmp(recvline, "Enter room number (1-5):\n") == 0){
 					
 					printf("Enter room number (1-5): \n");
 					/* 
 					 * SFML
 					 */
-					
+					scr.room_ing = true;
 				} else if(strcmp(recvline, "Sys: Make command now!\n") == 0){
 					printf("Enter command: \n");
 					/* 
@@ -166,16 +193,118 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 					Shutdown(sockfd, SHUT_WR);      /* send FIN */
 				};
             }else {
+				
 				sendline[strlen(sendline)-1] = '\0';
 				Writen(sockfd, sendline, strlen(sendline));
-				printf("sent: %s\n", sendline);
+				// printf("sent: %s\n", sendline);
+				if(scr.name_ing){
+					scr.name_ed = true;
+					scr.name_ing = false;
+					printf("name: %s\n", sendline);
+					// store the name
+					strcpy(scr.name, sendline);
+				}
 				bzero(sendline, MAXLINE);
 				bzero(recvline, MAXLINE);
 			};
         }
+
+
 		// 清除背景並繪製內容
-         clear_window(window, 0, 0, 0);  // 黑色背景
+        clear_window(window, 0, 0, 0);  // 黑色背景
         draw_image(window, image, (WINDOW_WIDTH - 700) / 2, 50); // 圖片放置於中央偏上
+		if(scr.name_ing){
+			const char* font_path = "Arial.ttf"; // 字體路徑
+			const char* title_text = "Enter your name in terminal";
+			int font_size = 30;
+			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			void* title = create_text(window, font_path, title_text, font_size,
+									  (800 - text_width) / 2, (600 - font_size) / 2,
+									  255, 255, 255);
+			if (!title) {
+				printf("Failed to create title text.\n");
+				close_window(window);
+				return;
+			}
+			draw_text(window, title);
+			// // 繪製輸入框
+			// draw_rectangle(window, (20 + text_width), (600-font_size)/2, 200, 50, 255, 255, 255);  // 白色矩形
+			// draw_rectangle(window, (22 + text_width), (600-font_size)/2+2, 196, 46, 0, 0, 0);        // 黑色內部
+			//  // 顯示輸入框的內容
+			// void* input_text = create_text(window, font_path, input_buffer, 30, 60, 260, 255, 255, 255);
+			// draw_text(window, input_text);
+			// delete_text(input_text);
+			delete_text(title);
+		}
+		if(scr.name_ed){
+			// put name on left bottom
+			const char* font_path = "Arial.ttf"; // 字體路徑
+			const char* title_text = scr.name;
+			int font_size = 30;
+			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			void* title = create_text(window, font_path, title_text, font_size,
+									  20, 600 - font_size,
+									  255, 255, 255);
+			if (!title) {
+				printf("Failed to create title text.\n");
+				close_window(window);
+				return;
+			}
+			draw_text(window, title);
+			delete_text(title);
+		} 
+		if (scr.room_ing) {
+			const char* font_path = "Arial.ttf";
+			const char* title_text = "Choose a room number";
+			int font_size = 30;
+			int text_width = strlen(title_text) * font_size / 2;
+			void* title = create_text(window, font_path, title_text, font_size,
+									(800 - text_width) / 2, (600 - font_size) / 2 - 100,
+									255, 255, 255);
+			draw_text(window, title);
+			delete_text(title);
+
+			// 創建並繪製 5 個按鈕
+			void* buttons[5];
+			for (int i = 0; i < 5; i++) {
+				buttons[i] = create_button(200 + i * 100, 300, 50, 50, 0, 255, 0); // 綠色按鈕
+				draw_button(window, buttons[i]);
+
+				// 繪製按鈕上的數字
+				char num[2];
+				sprintf(num, "%d", i + 1);
+				void* num_text = create_text(window, font_path, num, 30, 200 + i * 100 + 15, 300 + 10, 255, 0, 255);
+				draw_text(window, num_text);
+				delete_text(num_text);
+			}
+
+			// 檢測按鈕點擊
+			if (is_mouse_button_pressed()) {
+				int mouse_x = get_mouse_position_x(window);
+				int mouse_y = get_mouse_position_y(window);
+
+				for (int i = 0; i < 5; i++) {
+					if (is_button_clicked(window, buttons[i], mouse_x, mouse_y)) {
+						printf("Button %d clicked!\n", i + 1);
+						sprintf(sendline, "%d", i + 1);
+						sendline[strlen(sendline)] = '\0';
+						Writen(sockfd, sendline, strlen(sendline));
+						printf("sent: %s\n", sendline);
+						bzero(sendline, MAXLINE);
+						scr.room_num = i + 1; // 記錄被點擊的按鈕編號
+						scr.room_ing = false; // 完成選擇
+						scr.room_ed = true;
+					}
+				}
+			}
+
+			// 刪除按鈕資源
+			for (int i = 0; i < 5; i++) {
+				delete_button(buttons[i]);
+			}
+		}
+
+
         display_window(window);  // 顯示內容
 
         usleep(16000); // 模擬 60 FPS
@@ -201,6 +330,15 @@ int main(int argc, char **argv){
 
 	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
 	printf("Connected to server successfully!\n");
+
+	// memset
+	memset(scr.name, 0, sizeof(scr.name));
+
+	for(int i = 0; i < 3; i++){
+		scr.host[i] = false;
+	}
+
+	scr.room_num = 0;
 
 	// // 創建 SFML 視窗
     // void* window = create_window(800, 600, "Client Window");
@@ -239,6 +377,9 @@ int main(int argc, char **argv){
         return -1;
     }
 
+	clear_window(window, 0, 0, 0);  // 黑色背景
+	draw_image(window, image, (WINDOW_WIDTH - 700) / 2, 50); // 圖片放置於中央偏上
+	display_window(window);  // 顯示內容
 
 	xchg_data(stdin, sockfd, window, image);		/* do it all */
 	delete_image(image);
