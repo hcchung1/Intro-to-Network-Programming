@@ -89,6 +89,7 @@ typedef struct Obs{
 	 * 4: Tragedy3: Fire
 	 * 5: Tragedy4: Spiders
 	 * 6: Tragedy5: Zombies
+	 * 7: Treasure
 	 */
 }Obs;
 
@@ -173,28 +174,32 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			else if (n > 0) {
 				// change here to know everyting about the room
 				char *message;
-				// recvline[n] = '\0';
+				recvline[n] = '\0';
 				message = strtok(recvline, "\n"); // 按換行符分割訊息
 
+				printf("recv: %s\n", recvline);
+				char cmp0[256];
+				sprintf(cmp0, "Welcome, %s! Enter room number (1-5):", scr.name);
+				cmp0[strlen(cmp0)] = '\0';
+
+				char cmp1[256];
+				sprintf(cmp1, "You are the host of room %d. Set the number of players (5-8):", scr.room_num);
+				cmp1[strlen(cmp1)] = '\0';
+
+				int guest_number, chosen_room, step, nums, round;
+
 				while (message != NULL) {
-					char cmp0[256];
-					sprintf(cmp0, "Welcome, %s! Enter room number (1-5):", scr.name);
-					cmp0[strlen(cmp0)] = '\0';
-
-					char cmp1[256];
-					sprintf(cmp1, "You are the host of room %d. Set the number of players (5-8):", scr.room_num);
-					cmp1[strlen(cmp1)] = '\0';
-
-					int guest_number, chosen_room, step, nums, round;
+					
+					printf("message: %s\n", message);
 					
 					if(strcmp(message, "Enter your name:") == 0){
-						printf("0Enter your name: \n");
+						printf("Enter your name: \n");
 						scr.name_ing = true;
 
 					} 
 					else if(strcmp(message, cmp0) == 0){
 						
-						printf("0Enter room number (1-5): ");
+						printf("Enter room number (1-5): \n");
 						scr.room_ing = true;
 
 					} 
@@ -203,8 +208,8 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 
 					} 
 					else if(strcmp(message, cmp1) == 0){
-						printf("0You are the host!!\n");
-						printf("0Pick the number of players now!\n");
+						printf("You are the host!!\n");
+						printf("Pick the number of players now!\n");
 						scr.host.ishost = true;
 						scr.host.ishosted = true;
 
@@ -212,14 +217,15 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 					else if (sscanf(message, "You are guest no.%d in room %d.", &guest_number, &chosen_room) == 2) {
 						// 匹配成功，表示這是一個客人收到的消息
 						printf("You are guest no.%d in room %d.\n", guest_number, chosen_room);
-						printf("Waiting for the host to set up the game.\n");
-
 						// 更新 client 的狀態或進行下一步操作
 						scr.room_num = chosen_room; // 記錄房間號
 						scr.host.ishost = false;        // 表示不是房主
 						scr.host.ishosted = true;
 
 					} 
+					else if(strcmp(message, "Waiting for the host to set up the game.") == 0){
+						printf("Waiting for the host to set up the game.\n");
+					}
 					else if(sscanf(message, "Game in room %d has started! Prepare to explore!", &chosen_room) == 1){
 						printf("Game in room %d has started! Prepare to explore!!\n", chosen_room);
 						if(chosen_room == scr.room_num){
@@ -232,19 +238,19 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 						}
 
 					} 
-					else if(sscanf(message, "Round %d\n", &round) == 1){
+					else if(sscanf(message, "Round %d start from NOW!", &round) == 1){
 						printf("Round %d starts!!\n", round);
 						scr.round_now = round;
+						// scr.gamestart = true;
 
 					}
 					else if(sscanf(message, "Step:%d", &step) == 1){
 						printf("Step: %d\n", step);
 						scr.step_now = step;
-
 					}
 					else if(sscanf(message, "----Discovered %d gems!----", &nums) == 1){
-						printf("Discovered %d gems!\n", nums);
 
+						printf("Discovered %d gems!\n", nums);
 						scr.obs.wh = 1;
 						scr.obs.num = nums;
 						scr.player_ch_ing = true;
@@ -289,6 +295,13 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 						scr.player_ch_ing = true;
 						scr.player_ch_ed = false;
 
+					}
+					else if(sscanf(message, "WOW! It's a treasure!!! Value: {%d}.", &nums) == 1){
+						printf("WOW! It's a treasure!!! Value: {%d}.\n", nums);
+						scr.obs.wh = 7;
+						scr.obs.num = nums;
+						scr.player_ch_ing = true;
+						scr.player_ch_ed = false;
 					}
 					else if(strcmp(message, "All players are ready. Type 'gogo' to start the game.") == 0){
 						printf("All players are ready. Type 'gogo' to start the game.\n");
@@ -635,21 +648,30 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 									(800 - text_width) / 2, (600 - font_size) / 2 - 100,
 									255, 255, 255);
 			draw_text(window, title);
-			
-			title_text = "Leave";
-			font_size = 20;
-			text_width = strlen(title_text) * font_size / 2;
-			void* title2 = create_text(window, font_path, title_text, font_size,
-									700 - text_width / 2, 250 - font_size / 2,
-									255, 255, 255);
-			draw_text(window, title2);
-			
 
 			// 創建兩個圓形按鈕
 			void* leave_button = create_circle_button(700, 250, 20, 255, 0, 0); // 紅色圓形按鈕
 			void* stay_button = create_circle_button(700, 300, 20, 0, 255, 0); // 綠色圓形按鈕
 			draw_circle_button(window, leave_button);
 			draw_circle_button(window, stay_button);
+
+			title_text = "Leave";
+			font_size = 20;
+			text_width = strlen(title_text) * font_size / 2;
+			title = create_text(window, font_path, title_text, font_size,
+									700 - text_width / 2, 300 - font_size / 2,
+									255, 255, 255);
+			draw_text(window, title);
+
+			title_text = "Stay";
+			font_size = 20;
+			text_width = strlen(title_text) * font_size / 2;
+			title = create_text(window, font_path, title_text, font_size,
+									700 - text_width / 2, 250 - font_size / 2,
+									255, 255, 255);
+			draw_text(window, title);
+
+			delete_text(title);
 
 			// 檢測按鈕點擊
 			if (is_mouse_button_pressed() && !ms_ps) {
@@ -743,85 +765,39 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			switch(scr.obs.wh){
 				case 1:
 					sprintf(title_text, "Discovered %d gems!", scr.obs.num);
-					text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
-					title = create_text(window, font_path, title_text, font_size,
-										(800 - text_width) / 2, 0,
-										255, 255, 255);
-					if (!title) {
-						printf("Failed to create title text.\n");
-						close_window(window);
-						return;
-					}
-					draw_text(window, title);
 					break;
 				case 2:
 					sprintf(title_text, "----TRAGEDY1:SNAKE----");
-					text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
-					title = create_text(window, font_path, title_text, font_size,
-										(800 - text_width) / 2, 0,
-										255, 255, 255);
-					if (!title) {
-						printf("Failed to create title text.\n");
-						close_window(window);
-						return;
-					}
-					draw_text(window, title);
 					break;
 				case 3:
 					sprintf(title_text, "----TRAGEDY2:ROCKS----");
-					text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
-					title = create_text(window, font_path, title_text, font_size,
-										(800 - text_width) / 2, 0,
-										255, 255, 255);
-					if (!title) {
-						printf("Failed to create title text.\n");
-						close_window(window);
-						return;
-					}
-					draw_text(window, title);
 					break;
 				case 4:
 					sprintf(title_text, "----TRAGEDY3:FIRE----");
-					text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
-					title = create_text(window, font_path, title_text, font_size,
-										(800 - text_width) / 2, 0,
-										255, 255, 255);
-					if (!title) {
-						printf("Failed to create title text.\n");
-						close_window(window);
-						return;
-					}
-					draw_text(window, title);
 					break;
 				case 5:
 					sprintf(title_text, "----TRAGEDY4:SPIDERS----");
-					text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
-					title = create_text(window, font_path, title_text, font_size,
-										(800 - text_width) / 2, 0,
-										255, 255, 255);
-					if (!title) {
-						printf("Failed to create title text.\n");
-						close_window(window);
-						return;
-					}
-					draw_text(window, title);
 					break;
 				case 6:
 					sprintf(title_text, "----TRAGEDY5:ZOMBIES----");
-					text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
-					title = create_text(window, font_path, title_text, font_size,
-										(800 - text_width) / 2, 0,
-										255, 255, 255);
-					if (!title) {
-						printf("Failed to create title text.\n");
-						close_window(window);
-						return;
-					}
-					draw_text(window, title);
+					break;
+				case 7:
+					sprintf(title_text, "A treasure!!! Value = %d.", scr.obs.num);
 					break;
 				default:
 					break;
 			}
+
+			text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			title = create_text(window, font_path, title_text, font_size,
+								(800 - text_width) / 2, 150,
+								255, 20, 25);
+			if (!title) {
+				printf("Failed to create title text.\n");
+				close_window(window);
+				return;
+			}
+			draw_text(window, title);
 			delete_text(title);
 		}
 
