@@ -140,41 +140,38 @@ void start_game(int room_number) {
 
     srand(time(NULL));
     int card[35] = {2,4,5,6,7,8,9,10,10,11,11,13,14,15,17,-1,-1,-1,-2,-2,-2,-3,-3,-3,-4,-4,-4,-5,-5,-5,0,0,0,0,0};
-    int out_card[35];
-    memset(out_card, 0, sizeof(out_card));
-
+    int out_card[35] = {1};
+    
     for (int round = 0; round < room_rounds[room_number]; round++) {
-        int adv_status[MAX_CLIENTS_PER_ROOM];
-        memset(adv_status, 1, sizeof(adv_status));
+        int adv_status[MAX_CLIENTS_PER_ROOM] = {1};
         int remaining_players = room_max_players[room_number];
         int tempcoin[MAX_CLIENTS_PER_ROOM] = {0};
         int tragedy[5] = {0};
         int leftcoin = 0;
+        clock_t start_time = clock();
+        card[30+round] = 100 + round;
         int appear[5] = {0};
         int treasure_value[5] = {5, 7, 10, 12, 15};
-        int failed = 0;
-
-        snprintf(buffer, sizeof(buffer), "Round %d starts NOW!\n", round + 1);
+        snprintf(buffer, sizeof(buffer), "Round %d start from NOW!\n", round + 1);
         broadcast_message(room_number, buffer, -1);
-
-        // 等待 1 秒
-        sleep(1);
-
+        int r = 0;
+        int failed = 0;
+        while ((clock() - start_time) < CLOCKS_PER_SEC) {
+        // 持續等待，直到經過 1 秒
+        }
         while (remaining_players != 0) {
-            sleep(1);
-            // 步驟遞增
-            static int r = 0;
+            while ((clock() - start_time) < CLOCKS_PER_SEC) {
+            // 持續等待，直到經過 1 秒
+            }
             r++;
             snprintf(buffer, sizeof(buffer), "Step:%d  ", r);
             broadcast_message(room_number, buffer, -1);
-
-            // 抽取卡片
-            int y, z;
+            int y,z;
             do {
                 y = rand() % 35;
                 z = card[y];
-            } while (z == 0 || out_card[y] == 1);
-            out_card[y] = 1;
+            } while (z == 0 || out_card[y] == 0);
+            out_card[y] = 0;
 
             if (z > 0 && z <= 20) {
                 int t = z;
@@ -190,32 +187,29 @@ void start_game(int room_number) {
                 }
                 leftcoin += t;
             } else if (z < 0) {
-                switch (z) {
-                    case -1:
-                        snprintf(buffer, sizeof(buffer), "----TRAGEDY1:SNAKE----\n");
-                        break;
-                    case -2:
-                        snprintf(buffer, sizeof(buffer), "----TRAGEDY2:ROCKS----\n");
-                        break;
-                    case -3:
-                        snprintf(buffer, sizeof(buffer), "----TRAGEDY3:FIRE----\n");
-                        break;
-                    case -4:
-                        snprintf(buffer, sizeof(buffer), "----TRAGEDY4:SPIDERS----\n");
-                        break;
-                    case -5:
-                        snprintf(buffer, sizeof(buffer), "----TRAGEDY5:ZOMBIES----\n");
-                        break;
-                    default:
-                        snprintf(buffer, sizeof(buffer), "----UNKNOWN TRAGEDY----\n");
-                        break;
+                if (z == -1) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY1:SNAKE----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[0] += 1;
+                } else if (z == -2) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY2:ROCKS----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[1] += 1;
+                } else if (z == -3) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY3:FIRE----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[2] += 1;
+                } else if (z == -4) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY4:SPIDERS----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[3] += 1;
+                } else if (z == -5) {
+                    snprintf(buffer, sizeof(buffer), "----TRAGEDY5:ZOMBIES----\n");
+                    broadcast_message(room_number, buffer, -1);
+                    tragedy[4] += 1;
                 }
-                broadcast_message(room_number, buffer, -1);
-
-                // 增加悲劇次數
-                if (z >= -5 && z <= -1) {
-                    tragedy[-z - 1] += 1;
-                    if (tragedy[-z - 1] == 2) {
+                for (int T = 0; T < 5; T++) {
+                    if (tragedy[T] == 2) {
                         failed = 1;
                     }
                 }
@@ -225,76 +219,66 @@ void start_game(int room_number) {
                 broadcast_message(room_number, buffer, -1);
             }
 
-            // 更新玩家資源
+            while ((clock() - start_time) < CLOCKS_PER_SEC) {
+            // 持續等待，直到經過 1 秒
+            }
+
             for (int i = 0; i < room_max_players[room_number]; i++) {
                 if (adv_status[i] == 1) {
-                    snprintf(buffer, sizeof(buffer), "%s has: %d gems\n", room_client_names[room_number][i], tempcoin[i]);
+                    snprintf(buffer, sizeof(buffer), "%s have: %d gems\n", room_client_names[room_number][i], tempcoin[i]);
                     broadcast_message(room_number, buffer, -1);
                 }
             }
-
-            // 公布寶藏資訊
             for (int i = 0; i < 5; i++) {
                 if (appear[i] == 1) {
                     snprintf(buffer, sizeof(buffer), "There is a %d value treasure left.\n", treasure_value[i]);
                     broadcast_message(room_number, buffer, -1);
                 }
             }
-
-            // 公布地上的寶石數量
             snprintf(buffer, sizeof(buffer), "%d gem(s) left on the floor.\n", leftcoin);
             broadcast_message(room_number, buffer, -1);
-
-            // 請玩家做出決定
             snprintf(buffer, sizeof(buffer), "NOW, it's time to make a decision...Do you want to go home or stay? (y/n)\n");
             broadcast_message(room_number, buffer, -1);
+            
 
             // 設定回覆的超時時間
             const int TIMEOUT_SECONDS = 120;
-            char player_choices[MAX_CLIENTS_PER_ROOM];
-            memset(player_choices, 'N', sizeof(player_choices)); // 默認為 'N'
+            char player_choices[room_max_players[room_number]];
 
             for (int i = 0; i < room_max_players[room_number]; i++) {
                 if (adv_status[i] == 1) {
                     snprintf(buffer, sizeof(buffer), "%s, do you want to go home or stay? (y/n):\n", room_client_names[room_number][i]);
-                    if (Writen(room_clients[room_number][i], buffer, strlen(buffer)) < 0) {
-                        perror("Write to client failed");
-                        continue;
-                    }
+                    write(room_clients[room_number][i], buffer, strlen(buffer));
 
-                    // 使用 select 設置超時
-                    fd_set read_fds;
-                    struct timeval timeout;
-                    FD_ZERO(&read_fds);
-                    FD_SET(room_clients[room_number][i], &read_fds);
-                    timeout.tv_sec = TIMEOUT_SECONDS;
-                    timeout.tv_usec = 0;
-
-                    int ret = Select(room_clients[room_number][i] + 1, &read_fds, NULL, NULL, &timeout);
-                    if (ret > 0 && FD_ISSET(room_clients[room_number][i], &read_fds)) {
-                        char choice_buffer[MAXLINE];
-                        ssize_t choice_n = Readline(room_clients[room_number][i], &choice_buffer, MAXLINE);
-                        if (choice_n > 0) {
-                            choice_buffer[strcspn(choice_buffer, "\n")] = '\0'; // 移除換行符
-                            if (strcasecmp(choice_buffer, "y") == 0) {
-                                player_choices[i] = 'Y';
-                            } else {
-                                player_choices[i] = 'N';
-                            }
+                    // 開始計時
+                    time_t start_time = time(NULL);
+                    int bytes_read;
+                    while (1) {
+                        // 嘗試讀取回覆
+                        bytes_read = read(room_clients[room_number][i], buffer, sizeof(buffer) - 1);
+                        if (bytes_read > 0) {
+                            buffer[bytes_read] = '\0'; // 確保字串以 NULL 結尾
+                            player_choices[i] = buffer[0]; // 暫存玩家選擇
+                            break;
                         }
-                    } else {
-                        // 超時視為回家
-                        player_choices[i] = 'N';
-                        snprintf(buffer, sizeof(buffer), "%s did not respond in time and is assumed to have gone home.\n", room_client_names[room_number][i]);
-                        broadcast_message(room_number, buffer, -1);
+
+                        // 檢查是否超時
+                        if (difftime(time(NULL), start_time) > TIMEOUT_SECONDS) {
+                            player_choices[i] = 'N'; // 超時視為回家
+                            snprintf(buffer, sizeof(buffer), "%s did not respond in time and is assumed to have gone home.\n", room_client_names[room_number][i]);
+                            broadcast_message(room_number, buffer, -1);
+                            break;
+                        }
                     }
+                } else {
+                    player_choices[i] = 'N'; // 已回家的玩家默認為 N
                 }
             }
 
             // 公布所有玩家的選擇並更新狀態
             for (int i = 0; i < room_max_players[room_number]; i++) {
                 if (adv_status[i] == 1) {
-                    if (player_choices[i] == 'N') {
+                    if (player_choices[i] == 'N' || player_choices[i] == 'n') {
                         adv_status[i] = 0; // 玩家選擇回家
                         snprintf(buffer, sizeof(buffer), "%s has chosen to go home.\n", room_client_names[room_number][i]);
                         broadcast_message(room_number, buffer, -1);
@@ -320,16 +304,7 @@ void start_game(int room_number) {
                 break;
             }
 
-            // 如果發生悲劇，結束回合
-            if (failed) {
-                snprintf(buffer, sizeof(buffer), "Tragedy occurred! Game over for this round.\n");
-                broadcast_message(room_number, buffer, -1);
-                break;
-            }
         }
-
-        snprintf(buffer, sizeof(buffer), "Round %d has ended.\n", round + 1);
-        broadcast_message(room_number, buffer, -1);
     }
 }
 
