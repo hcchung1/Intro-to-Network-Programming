@@ -567,7 +567,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                 write(client_fd, sendline, strlen(sendline));
                 snprintf(sendline, sizeof(sendline),
                          "%s has joined as guest.\n", client_names[client_fd]);
-                broadcast_message(chosen_room, sendline, client_fd);
+                broadcast_message(chosen_room, sendline, -1);
             }
 
             /***********************************************************
@@ -642,7 +642,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                      "Round numbers set to %ld. Room setup complete! Wait for the players joining\n",
                      value);
             write(client_fd, sendline, strlen(sendline));
-            broadcast_message(room_number, sendline, client_fd);
+            broadcast_message(room_number, sendline, -1);
 
             client_stage[room_number][idx] = STAGE_ROOM_OPERATION;
 
@@ -688,11 +688,11 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                     p++;
                 }
                 snprintf(sendline, sizeof(sendline),
-                        "%s msg: %s\n",
+                        "msg\n%s\n%s\n",
                         room_client_names[room_number][idx],
                         p);
 
-                broadcast_message(room_number, sendline, client_fd);
+                broadcast_message(room_number, sendline, -1);
             }
         } else if (strncasecmp(readline, "msg:", 4) == 0) {
             char *p = readline + 4;
@@ -700,11 +700,11 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                 p++;
             }
             snprintf(sendline, sizeof(sendline),
-                        "%s msg: %s\n",
+                        "msg\n%s\n%s\n",
                         room_client_names[room_number][idx],
                         p);
 
-            broadcast_message(room_number, sendline, client_fd);
+            broadcast_message(room_number, sendline, -1);
         }
 
         // 再檢查人數是否已到 => 廣播要求準備
@@ -777,11 +777,11 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                     p++;
                 }
                 snprintf(sendline, sizeof(sendline),
-                        "%s msg: %s\n",
+                        "msg\n%s\n%s\n",
                         room_client_names[room_number][idx],
                         p);
 
-                broadcast_message(room_number, sendline, client_fd);
+                broadcast_message(room_number, sendline, -1);
         } else {
             snprintf(sendline, sizeof(sendline), 
                      "Invalid command. Type 'ok' or 'ready'.\n");
@@ -808,11 +808,11 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                         p++;
                     }
                     snprintf(sendline, sizeof(sendline),
-                            "%s msg: %s\n",
+                            "msg\n%s\n%s\n",
                             room_client_names[room_number][idx],
                             p);
 
-                    broadcast_message(room_number, sendline, client_fd);
+                    broadcast_message(room_number, sendline, -1);
                 
                 } else {
                     snprintf(sendline, sizeof(sendline),
@@ -835,11 +835,11 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                 p++;
             }
             snprintf(sendline, sizeof(sendline),
-                    "%s msg: %s\n",
+                    "msg\n%s\n%s\n",
                     room_client_names[room_number][idx],
                     p);
 
-            broadcast_message(room_number, sendline, client_fd);
+            broadcast_message(room_number, sendline, -1);
         }
         break;
     }
