@@ -113,6 +113,15 @@ typedef struct Obs{
 	 */
 }Obs;
 
+typedef struct Stri{
+	char str[256];
+}Stri;
+
+typedef struct PP{
+	char name[128];
+	int score;
+}PP;
+
 typedef struct Screen {
 	char name[128];
 	bool name_ing;
@@ -129,8 +138,15 @@ typedef struct Screen {
 	bool gamestart; // game is started(broadcasted by server)
 	int round_now; // current round number
 	int step_now; // current step number
+	bool next_ing; 
+	bool next_ed; 
 	Obs obs;
 	bool gameover;
+	int all_room_num[5];
+	Stri msgs[10];
+	int gem_num;
+	PP players[10];
+	Stri stay[10];
 } screen;
 
 screen scr;
@@ -200,27 +216,45 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				// printf("recv: %s\n", recvline);
 				char cmp0[256];
 				int guest_number, chosen_room, step, nums, round;
+				int nums1 = 0, nums2 = 0, nums3 = 0, nums4 = 0, nums5 = 0;
+				char msgchat[256];
+				char msgchat2[256];
+				sprintf(msgchat2, "Round %d ended.", scr.round_now);
 
 				while (message != NULL) {
-					
-					// printf("message: %s\n", message);
-					
+
 					if(strcmp(message, "Enter your name:") == 0){
-						printf("Enter your name: \n");
+						// printf("Enter your name: \n");
 						scr.name_ing = true;
+						for(int i = 0; i < 5; i++){
+							scr.all_room_num[i] = 0;
+						}
 
 					} 
+					else if(strcmp(message, msgchat2) == 0){
+						// printf("Round %d ed\n", scr.round_now);
+						scr.next_ing = true;
+						scr.next_ed = false;
+					}
 					else if(sscanf(message, "Welcome, %s! Enter room number (1-5):", &cmp0) == 1){
 						cmp0[strlen(cmp0)-1] = '\0';
 						if(strcmp(cmp0, scr.name) != 0)	errormsg("name not match");
-						printf("Enter room number (1-5): \n");
+						// printf("Enter room number (1-5): \n");
+						// printf("%s\n", message);
+						for(int i = 0; i < 5; i++){
+							message = strtok(NULL, "\n");
+							if(sscanf(message, "%d", &nums) == 1){
+								scr.all_room_num[i] = nums;
+							}
+						}
+						// printf("room number: %d %d %d %d %d\n", scr.all_room_num[0], scr.all_room_num[1], scr.all_room_num[2], scr.all_room_num[3], scr.all_room_num[4]);
 						scr.room_ing = true;
 
 					}
 					else if(sscanf(message, "You are the host of room %d. Set the number of players (5-8):", &chosen_room) == 1){
 						if(chosen_room != scr.room_num) errormsg("room number not match");
-						printf("You are the host!!\n");
-						printf("Pick the number of players now!\n");
+						// printf("You are the host!!\n");
+						// printf("Pick the number of players now!\n");
 						scr.host.nply_ing = true;
 						scr.host.ishost = true;
 						scr.host.ishosted = true;
@@ -228,7 +262,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 					}
 					else if(sscanf(message, "Player numbers set to %d. Please enter the round numbers (3-5):", &nums) == 1){
 						if(nums != scr.host.player_num) errormsg("player number not match");
-						printf("Player numbers set to %d. Please enter the round numbers (3-5):\n", nums);
+						// printf("Player numbers set to %d. Please enter the round numbers (3-5):\n", nums);
 						scr.host.nround_ing = true;
 						scr.host.nround_ed = false;
 						scr.host.nply_ed = true;
@@ -236,98 +270,186 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 					}
 					else if(sscanf(message, "Round numbers set to %d. Room setup complete! Wait for the players joining\n", &nums) == 1){
 						if(nums != scr.host.round_num) errormsg("round number not match");
-						printf("Round numbers set to %d. Room setup complete! Wait for the players joining\n", nums);
+						// printf("Round numbers set to %d. Room setup complete! Wait for the players joining\n", nums);
 						scr.host.nround_ed = true;
 
 					}
-					else if (sscanf(message, "You are guest no.%d in room %d.", &guest_number, &chosen_room) == 2) {
+					else if (sscanf(message, "You are guest in room %d.", &chosen_room) == 1) {
 						// 匹配成功，表示這是一個客人收到的消息
-						printf("You are guest no.%d in room %d.\n", guest_number, chosen_room);
+						// printf("You are the guest in room %d.\n", chosen_room);
 						scr.room_num = chosen_room; // 記錄房間號
 						scr.host.ishost = false;        // 表示不是房主
 						scr.host.ishosted = true;
 
 					} 
 					else if(strcmp(message, "Waiting for the host to set up the game.") == 0){
-						printf("Waiting for the host to set up the game.\n");
+						// printf("Waiting for the host to set up the game.\n");
 
 					}
 					else if(sscanf(message, "Game in room %d has started! Prepare to explore!", &chosen_room) == 1){
-						printf("Game in room %d has started! Prepare to explore!!\n", chosen_room);
+						// printf("Game in room %d has started! Prepare to explore!!\n", chosen_room);
 						if(chosen_room == scr.room_num)scr.gamestart = true;
 						else errormsg("room number not match");
 
 					} 
 					else if(sscanf(message, "Round %d start from NOW!", &round) == 1){
-						printf("Round %d starts!!\n", round);
+						// printf("Round %d starts!!\n", round);
 						scr.round_now = round;
+						scr.next_ed = true;
+						scr.next_ing = false;
+						// clear scr.players[10]
+						for(int i = 0; i < 10; i++){
+							scr.players[i].name[0] = '\0';
+							scr.players[i].score = 0;
+						}
 
 					}
 					else if(sscanf(message, "Step:%d", &step) == 1){
-						printf("Step: %d\n", step);
+						// printf("Step: %d\n", step);
 						scr.step_now = step;
+						// clear scr.stay[10]
+						for(int i = 0; i < 10; i++){
+							scr.stay[i].str[0] = '\0';
+						}
 
 					}
 					else if(sscanf(message, "----Discovered %d gems!----", &nums) == 1){
-						printf("Discovered %d gems!\n", nums);
+						// printf("Discovered %d gems!\n", nums);
 						scr.obs.wh = 1;
 						scr.obs.num = nums;
 
 					}
 					else if(strcmp(message, "----TRAGEDY1:SNAKE----") == 0){
-						printf("tragedy: snake\n");
+						// printf("tragedy: snake\n");
 						scr.obs.wh = 2;
 						scr.obs.num = 1;
 
 					} 
 					else if(strcmp(message, "----TRAGEDY2:ROCKS----") == 0){
-						printf("tragedy: rocks\n");
+						// printf("tragedy: rocks\n");
 						scr.obs.wh = 3;
 						scr.obs.num = 1;
 
 					}
 					else if(strcmp(message, "----TRAGEDY3:FIRE----") == 0){
-						printf("tragedy: fire\n");
+						// printf("tragedy: fire\n");
 						scr.obs.wh = 4;
 						scr.obs.num = 1;
 
 					}
 					else if(strcmp(message, "----TRAGEDY4:SPIDERS----") == 0){
-						printf("tragedy: spiders\n");
+						// printf("tragedy: spiders\n");
 						scr.obs.wh = 5;
 						scr.obs.num = 1;
 
 					}
 					else if(strcmp(message, "----TRAGEDY5:ZOMBIES----") == 0){
-						printf("tragedy: zombies\n");
+						// printf("tragedy: zombies\n");
 						scr.obs.wh = 6;
 						scr.obs.num = 1;
 
 					}
+					else if(sscanf(message, "%d gem(s) left on the floor.\n", &nums) == 1){
+						// printf("%d gem(s) left on the floor.\n", nums);
+						scr.gem_num = nums;
+						// printf("gem num: %d\n", scr.gem_num);
+
+					}
 					else if(sscanf(message, "WOW! It's a treasure!!! Value: {%d}.", &nums) == 1){
-						printf("WOW! It's a treasure!!! Value: {%d}.\n", nums);
+						// printf("WOW! It's a treasure!!! Value: {%d}.\n", nums);
 						scr.obs.wh = 7;
 						scr.obs.num = nums;
+
 					}
 					else if(strcmp(message, "All players are ready. Type 'gogo' to start the game.") == 0){
-						printf("All players are ready. Type 'gogo' to start the game.\n");
+						// printf("All players are ready. Type 'gogo' to start the game.\n");
+
 					}else if(strcmp(message, "All rounds completed. Game Over!") == 0){
-						printf("All rounds completed. Game Over!\n");
+						// printf("All rounds completed. Game Over!\n");
 						scr.gameover = true;
+
 					}
 					else if(strcmp(message, "NOW, it's time to make a decision...Do you want to go home or stay? (y/n)") == 0){
-						printf("NOW, it's time to make a decision...Do you want to go home or stay? (y/n)\n");
+						// printf("NOW, it's time to make a decision...Do you want to go home or stay? (y/n)\n");
 						scr.player_ch_ing = true;
 						scr.player_ch_ed = false;
+
 					}
-					else if(strcmp(message, "All rounds done! Game Over.") == 0){
-						printf("Game Over!\n");
+					else if(strcmp(message, "All rounds done! Game Over!") == 0){
+						// printf("Game Over!\n");
 						scr.gameover = true;
+						scr.next_ing = false;
+						scr.next_ed = false;
+
+					}
+					else if(strcmp(message, "msg") == 0){
+						// printf("kk\n\n");
+						message = strtok(NULL, "\n");
+						strcpy(msgchat, message);
+						// printf("msg: %s\n", msgchat);
+						message = strtok(NULL, "\n");
+						strcpy(cmp0, message);
+						// printf("cmp0: %s\n", cmp0);
+						bool msgfull = true;
+						char msgtmp[256];
+						if(strcmp(msgchat, scr.name) != 0){
+							sprintf(msgtmp, "%s: %s", msgchat, cmp0);
+						}
+						else sprintf(msgtmp, "me: %s",cmp0);
+						for(int i = 0; i < 10; i++){
+							if(scr.msgs[i].str[0] == '\0'){
+								strcpy(scr.msgs[i].str, msgtmp);
+								msgfull = false;
+								break;
+							}
+						}
+						if(msgfull){
+							// if msg is full, shift the msg
+							for(int i = 9; i > 0; i--){
+								// copy the msgs[i] to msgs[i-1]
+								strcpy(scr.msgs[i-1].str, scr.msgs[i].str);
+							}
+							strcpy(scr.msgs[9].str, msgtmp);
+						}
+
+					}
+					else if(strcmp(message, "All players went home, end of this round.") == 0){
+						// printf("All players went home, end of this round.\n");
+						scr.next_ing = true;
+						scr.next_ed = false;
+
+					}
+					else if(strcmp(message, "REMEMBER: ONLY ONE person can bring it back...") == 0) nums = 0; // no use
+					else if(strcmp(message, "start next round: please type ok to prepare.") == 0) nums = 0; // no use
+					else if(sscanf(message, "%s went home with score: %d", &cmp0, &nums) == 2){
+						// printf("%s w %d\n", cmp0, nums);
+						for(int i = 0; i < 10; i++){
+							if(strcmp(scr.players[i].name, cmp0) == 0){
+								scr.players[i].score = nums;
+								break;
+							}
+							if(scr.players[i].name[0] == '\0'){
+								strcpy(scr.players[i].name, cmp0);
+								scr.players[i].score = nums;
+								break;
+							}
+						}
+					}
+					else if(sscanf(message, "%s decided to stay.\n", &cmp0) == 1){
+						printf("%s stay\n", cmp0);
+						for(int i = 0; i < 10; i++){
+							if(scr.stay[i].str[0] == '\0'){
+								strcpy(scr.stay[i].str, cmp0);
+								break;
+							}
+						}
 					}
 					else {
 						printf("\033[1;34m%s\033[0m\n", message);
-						// printf("not yet\n%s\n", message);
+						
 					}
+
+					
 					// 獲取下一條訊息
 					message = strtok(NULL, "\n");
 				}
@@ -358,15 +480,6 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				
 				sendline[strlen(sendline)-1] = '\0';
 				Writen(sockfd, sendline, strlen(sendline));
-				// printf("sent: %s\n", sendline);
-				if(scr.name_ing){
-					scr.name_ed = true;
-					scr.name_ing = false;
-					printf("name: %s\n", sendline);
-					// store the name
-					strcpy(scr.name, sendline);
-					scr.name[strlen(scr.name)] = '\0';
-				}
 				bzero(sendline, MAXLINE);
 				bzero(recvline, MAXLINE);
 			};
@@ -375,34 +488,59 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 		
 		// 清除背景並繪製內容
         clear_window(window, 0, 0, 0);  // 黑色背景
-        draw_image(window, image, (WINDOW_WIDTH - 700) / 2, 0); // 圖片放置於中央偏上
+		bool someonehome = false;
+		for(int i = 0; i < 10; i++){
+			if(scr.players[i].name[0] != '\0'){
+				someonehome = true;
+				break;
+			}
+		}
+        if(!someonehome)draw_image(window, image, (WINDOW_WIDTH - 700) / 2, 0); // 圖片放置於中央偏上
+		else{
+			int count = 0;
+			int x = 10;
+			int y = 10;
+			for(int i = 0; i < 10; i++){
+				if(scr.players[i].name[0] != '\0'){
+					char tmp[256];
+					sprintf(tmp, "%s: %d", scr.players[i].name, scr.players[i].score);
+					void* text = create_text(window, "Arial.ttf", tmp, 20, x, y, 255, 255, 255);
+					draw_text(window, text);
+					delete_text(text);
+					if(count % 2 == 0){
+						y = 40;
+					}else{
+						x += 150;
+						y = 10;
+					}
+					count++;
+				}
+			}
+		}
 
 		if(scr.name_ing){
 
 			const char* font_path = "Arial.ttf"; // 字體路徑
-			const char* title_text = "Enter your name:";
+			const char* title_text = "Enter your name:(press Enter to send)"; // 標題文字
 			int font_size = 30;
 			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
 			void* title = create_text(window, font_path, title_text, font_size,
-									  (800 - text_width) / 2-100, (600 - font_size) / 2,
+									  (800 - text_width) / 2, (600 - font_size) / 2,
 									  255, 255, 255);
-			if (!title) {
-				printf("Failed to create title text.\n");
-				close_window(window);
-				return;
-			}
+			if (!title) errormsg("create_text failed");
 			draw_text(window, title);
 			delete_text(title);
 
-			// 創建並繪製發送按鈕
-			void* send_button = create_button(650, 300, 100, 50, 0, 0, 255);
-			draw_button(window, send_button);
+			// 創建並繪製輸入框
+			void* button = create_button(190, 345, 390, 50, 255, 255, 255); // 白色background
+			draw_button(window, button);
+			delete_button(button);
+			button = create_button(195, 350, 380, 40, 0, 0, 0); // 黑色邊框
+			draw_button(window, button);
+			delete_button(button);
 
-			void* send_button_text = create_text(window, font_path, "Send", 24, 670, 310, 255, 255, 255);
-			draw_text(window, send_button_text);
-			delete_text(send_button_text);
 
-			void* input_text = create_text(window, font_path, input_buffer, 30, 450, 320, 255, 255, 255);
+			void* input_text = create_text(window, font_path, input_buffer, 30, 200, 350, 255, 255, 255);
 			draw_text(window, input_text);
 			delete_text(input_text);
 
@@ -418,32 +556,26 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 					key_ps = false;
 					if (c == '\b' && input_len > 0) {  // 處理刪除鍵
 						input_buffer[--input_len] = '\0';
-					} else if (c != '\b' && input_len < sizeof(input_buffer) - 1) {
+					} 
+					else if (c != '\b' && input_len < sizeof(input_buffer) - 1 && c >= 32 && c <= 126) {  // 處理可見字符
 						input_buffer[input_len++] = c;
 						input_buffer[input_len] = '\0';
-					}
-					
-				}
-
-				if(is_mouse_button_pressed() == true && ms_ps == false){
-					ms_ps = true;
-				}
-				if (is_mouse_button_pressed() == false && ms_ps == true) {
-					ms_ps = false;
-					int mouse_x = get_mouse_position_x(window);
-					int mouse_y = get_mouse_position_y(window);
-					
-					if (is_button_clicked(window, send_button, mouse_x, mouse_y)) {
-						printf("Button clicked!\n");
+					} else if(c == 13 && input_len > 0){
+						// printf("Enter pressed\n");
 						strncpy(scr.name, input_buffer, sizeof(scr.name) - 1);
 						scr.name[strlen(scr.name)] = '\0';
 						scr.name_ed = true;
 						scr.name_ing = false;
-
 						Writen(sockfd, scr.name, strlen(scr.name));
-						printf("Name sent: %s\n", scr.name);
+						// printf("Name sent: %s\n", scr.name);
+						bzero(input_buffer, sizeof(input_buffer));
+						input_len = 0;
+
+					} 
+					else {
+						int nn = c;
+						printf("Invalid input: %d\n", nn);
 					}
-					
 					
 				}
 			}
@@ -469,7 +601,12 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				// 繪製按鈕上的數字
 				char num[2];
 				sprintf(num, "%d", i + 1);
+				char text[128];
+				sprintf(text, "%d in", scr.all_room_num[i]);
 				void* num_text = create_text(window, font_path, num, 30, 200 + i * 100 + 15, 300 + 10, 255, 0, 255);
+				void* text_text = create_text(window, font_path, text, 30, 200 + i * 100 + 5, 300 + 50, 255, 0, 255);
+				draw_text(window, text_text);
+				delete_text(text_text);
 				draw_text(window, num_text);
 				delete_text(num_text);
 			}
@@ -485,12 +622,12 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 
 				for (int i = 0; i < 5; i++) {
 					if (is_button_clicked(window, buttons[i], mouse_x, mouse_y)) {
-						printf("Button %d clicked!\n", i + 1);
+						// printf("Button %d clicked!\n", i + 1);
 						sprintf(sendline, "%d", i + 1);
 						sendline[strlen(sendline)] = '\0';
 						scr.room_num = i + 1; // 記錄被點擊的按鈕編號
 						Writen(sockfd, sendline, strlen(sendline));
-						printf("sent: %s\n", sendline);
+						// printf("sent: %s\n", sendline);
 						bzero(sendline, MAXLINE);
 						scr.room_ing = false; // 完成選擇
 						scr.room_ed = true;
@@ -502,6 +639,105 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			for (int i = 0; i < 5; i++) {
 				delete_button(buttons[i]);
 			}
+		}
+
+		if(scr.next_ing && !scr.host.ishost){
+			const char* font_path = "Arial.ttf"; // 字體路徑
+			const char* title_text = "Ready";
+			int font_size = 30;
+			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			void* title = create_text(window, font_path, title_text, font_size,
+									  30, 500 - font_size / 2,
+									  255, 255, 255);
+			// 按照文字大小建立按鈕
+			void* button = create_button((0), (500 - font_size / 2), (text_width + 50), (font_size+10), 0, 0, 255); // 藍色按鈕
+			draw_button(window, button);
+			draw_text(window, title);
+			delete_text(title);
+
+			title_text = "Ready to Next Round?";
+			text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			title = create_text(window, font_path, title_text, font_size,
+									  (50), (81),
+									  255, 0, 0);
+			draw_text(window, title);
+			delete_text(title);
+			
+
+			const char* title_text2 = "press Ready!";
+			text_width = strlen(title_text2) * font_size / 2; // 簡單估算文字寬度
+			title = create_text(window, font_path, title_text2, font_size,
+									  50, (81 + font_size + 10),
+									  255, 0, 0);
+			draw_text(window, title);
+			delete_text(title);
+			
+			// 檢測按鈕點擊
+			if(has_focus(window) && is_mouse_button_pressed() && !ms_ps){
+				ms_ps = true;
+			}
+			if (is_mouse_button_pressed() == false && ms_ps) {
+				ms_ps = false;
+				int mouse_x = get_mouse_position_x(window);
+				int mouse_y = get_mouse_position_y(window);
+				if (is_button_clicked(window, button, mouse_x, mouse_y)) {
+					// printf("Ready clicked!\n");
+					sprintf(sendline, "ok");
+					sendline[strlen(sendline)] = '\0';
+					Writen(sockfd, sendline, strlen(sendline));
+					scr.next_ing = false;
+					// printf("sent: %s\n", sendline);
+					bzero(sendline, MAXLINE);
+				}
+			}
+			delete_button(button);
+		}else if(scr.next_ing && scr.host.ishost){
+			const char* font_path = "Arial.ttf"; // 字體路徑
+			const char* title_text = "Start";
+			int font_size = 30;
+			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			void* title = create_text(window, font_path, title_text, font_size,
+									  30, 500 - font_size / 2,
+									  255, 255, 255);
+			void* button = create_button((0), (500 - font_size / 2), (text_width + 50), (font_size+10), 0, 0, 255); // 藍色按鈕
+			draw_button(window, button);
+			draw_text(window, title);
+			delete_text(title);
+
+			title_text = "Ready to Next Round?";
+			text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			title = create_text(window, font_path, title_text, font_size,
+									  (50), (81),
+									  255, 0, 0);
+			draw_text(window, title);
+			delete_text(title);
+
+			const char* title_text2 = "press Start!";
+			text_width = strlen(title_text2) * font_size / 2; // 簡單估算文字寬度
+			title = create_text(window, font_path, title_text2, font_size,
+									  50, (81 + font_size + 10),
+									  255, 0, 0);
+			draw_text(window, title);
+			delete_text(title);
+			// 檢測按鈕點擊
+			if(has_focus(window) && is_mouse_button_pressed() && !ms_ps){
+				ms_ps = true;
+			}
+			if (is_mouse_button_pressed() == false && ms_ps) {
+				ms_ps = false;
+				int mouse_x = get_mouse_position_x(window);
+				int mouse_y = get_mouse_position_y(window);
+				if (is_button_clicked(window, button, mouse_x, mouse_y)) {
+					// printf("Start clicked!\n");
+					sprintf(sendline, "gogo");
+					sendline[strlen(sendline)] = '\0';
+					Writen(sockfd, sendline, strlen(sendline));
+					scr.next_ing= false;
+					// printf("sent: %s\n", sendline);
+					bzero(sendline, MAXLINE);
+				}
+			}
+			delete_button(button);
 		}
 		
 		if(scr.host.nply_ing && scr.host.ishost){
@@ -549,11 +785,11 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 
 				for (int i = 0; i < 4; i++) {
 					if (is_button_clicked(window, buttons[i], mouse_x, mouse_y)) {
-						printf("Button %d clicked!\n", i + 5);
+						// printf("Button %d clicked!\n", i + 5);
 						sprintf(sendline, "%d", i + 5);
 						sendline[strlen(sendline)] = '\0';
 						Writen(sockfd, sendline, strlen(sendline));
-						printf("sent: %s\n", sendline);
+						// printf("sent: %s\n", sendline);
 						bzero(sendline, MAXLINE);
 						scr.host.player_num = i + 5;
 						scr.host.nply_ing = false;
@@ -608,11 +844,11 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 
 				for (int i = 0; i < 3; i++) {
 					if (is_button_clicked(window, buttons[i], mouse_x, mouse_y)) {
-						printf("Button %d clicked!\n", i + 3);
+						// printf("Button %d clicked!\n", i + 3);
 						sprintf(sendline, "%d", i + 3);
 						sendline[strlen(sendline)] = '\0';
 						Writen(sockfd, sendline, strlen(sendline));
-						printf("sent: %s\n", sendline);
+						// printf("sent: %s\n", sendline);
 						bzero(sendline, MAXLINE);
 						scr.host.round_num = i + 3;
 						scr.host.nround_ing = false;
@@ -629,11 +865,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			// 放入照片
 			const char* image_path = "incan-gold-game.png"; // 圖片路徑
 			void* image = load_image(image_path);
-			if (!image) {
-				printf("Failed to load image: %s\n", image_path);
-				close_window(window);
-				return;
-			}
+			if (!image) errormsg("Failed to load image");
 			draw_image(window, image, 0, 81);
 			delete_image(image);
 			//在右下角放按鈕作為 ready(guest)
@@ -644,10 +876,10 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			int font_size = 30;
 			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
 			void* title = create_text(window, font_path, title_text, font_size,
-									  700 + 25 - text_width / 2, 500 - font_size / 2,
+									  30, 500 - font_size / 2,
 									  255, 255, 255);
 			// 按照文字大小建立按鈕
-			void* button = create_button((700 - text_width / 2), (500 - font_size / 2), (text_width + 50), (font_size+10), 0, 0, 255); // 藍色按鈕
+			void* button = create_button((0), (500 - font_size / 2), (text_width + 50), (font_size+10), 0, 0, 255); // 藍色按鈕
 			draw_button(window, button);
 			draw_text(window, title);
 			delete_text(title);
@@ -660,12 +892,12 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				int mouse_x = get_mouse_position_x(window);
 				int mouse_y = get_mouse_position_y(window);
 				if (is_button_clicked(window, button, mouse_x, mouse_y)) {
-					printf("Ready clicked!\n");
+					// printf("Ready clicked!\n");
 					sprintf(sendline, "ok");
 					sendline[strlen(sendline)] = '\0';
 					Writen(sockfd, sendline, strlen(sendline));
 					scr.isready = true;
-					printf("sent: %s\n", sendline);
+					// printf("sent: %s\n", sendline);
 					bzero(sendline, MAXLINE);
 				}
 			}
@@ -674,11 +906,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			// 放入照片
 			const char* image_path = "incan-gold-game.png"; // 圖片路徑
 			void* image = load_image(image_path);
-			if (!image) {
-				printf("Failed to load image: %s\n", image_path);
-				close_window(window);
-				return;
-			}
+			if (!image) errormsg("Failed to load image");
 			draw_image(window, image, 0, 81);
 			delete_image(image);
 			//在右下角放按鈕作為 start(host)
@@ -688,9 +916,9 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			int font_size = 30;
 			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
 			void* title = create_text(window, font_path, title_text, font_size,
-									  700 + 25 - text_width / 2, 500 - font_size / 2,
+									  30, 500 - font_size / 2,
 									  255, 255, 255);
-			void* button = create_button((700 - text_width / 2), (500 - font_size / 2), (text_width + 50), (font_size+10), 0, 0, 255); // 藍色按鈕
+			void* button = create_button((0), (500 - font_size / 2), (text_width + 50), (font_size+10), 0, 0, 255); // 藍色按鈕
 			draw_button(window, button);
 			draw_text(window, title);
 			delete_text(title);
@@ -703,12 +931,12 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				int mouse_x = get_mouse_position_x(window);
 				int mouse_y = get_mouse_position_y(window);
 				if (is_button_clicked(window, button, mouse_x, mouse_y)) {
-					printf("Start clicked!\n");
-					sprintf(sendline, "gogo");
+					// printf("Start clicked!\n");
+					sprintf(sendline, "go");
 					sendline[strlen(sendline)] = '\0';
 					Writen(sockfd, sendline, strlen(sendline));
 					scr.isready = true;
-					printf("sent: %s\n", sendline);
+					// printf("sent: %s\n", sendline);
 					bzero(sendline, MAXLINE);
 				}
 			}
@@ -716,7 +944,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 
 		if (scr.player_ch_ing) {
 			const char* font_path = "Arial.ttf"; // 字體路徑
-			const char* title_text = "Pick your choice";
+			const char* title_text = " ";
 			int font_size = 30;
 			int text_width = strlen(title_text) * font_size / 2;
 			void* title = create_text(window, font_path, title_text, font_size,
@@ -758,20 +986,20 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				int mouse_y = get_mouse_position_y(window);
 
 				if (is_circle_button_clicked(window, leave_button, mouse_x, mouse_y)) {
-					printf("Leave clicked!\n");
+					// printf("Leave clicked!\n");
 					sprintf(sendline, "n");
 					sendline[strlen(sendline)] = '\0';
 					Writen(sockfd, sendline, strlen(sendline));
-					printf("sent: %s\n", sendline);
+					// printf("sent: %s\n", sendline);
 					scr.player_ch_ing = false;
 					scr.player_ch_ed = true;
 				}
 				if (is_circle_button_clicked(window, stay_button, mouse_x, mouse_y)) {
-					printf("Stay clicked!\n");
+					// printf("Stay clicked!\n");
 					sprintf(sendline, "y");
 					sendline[strlen(sendline)] = '\0';
 					Writen(sockfd, sendline, strlen(sendline));
-					printf("sent: %s\n", sendline);
+					// printf("sent: %s\n", sendline);
 					scr.player_ch_ing = false;
 					scr.player_ch_ed = true;
 				}
@@ -780,6 +1008,21 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			// 刪除按鈕資源
 			delete_circle_button(leave_button);
 			delete_circle_button(stay_button);
+		}else if(!scr.player_ch_ing && scr.player_ch_ed){
+			// put who has decide to leave in the place buttom used to be
+			const char* font_path = "Arial.ttf"; // 字體路徑
+			for(int i = 0; i < 10; i++){
+				if(scr.stay[i].str[0] != '\0'){
+					const char* title_text = scr.stay[i].str;
+					int font_size = 20;
+					int text_width = strlen(title_text) * font_size / 2;
+					void* title = create_text(window, font_path, title_text, font_size,
+											400 - text_width / 2, 425 - font_size / 2 + 30 * i,
+											255, 255, 255);
+					draw_text(window, title);
+					delete_text(title);
+				}
+			}
 		}
 
 		if(scr.room_ed){
@@ -793,11 +1036,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			void* title = create_text(window, font_path, title_text, font_size,
 									  650, 600 - font_size*2,
 									  255, 255, 255);
-			if (!title) {
-				printf("Failed to create title text.\n");
-				close_window(window);
-				return;
-			}
+			if (!title) errormsg("Failed to create title text.\n");
 			draw_text(window, title);
 			delete_text(title);
 		}
@@ -811,16 +1050,12 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			void* title = create_text(window, font_path, title_text, font_size,
 									  20, 600 - font_size*2,
 									  255, 255, 255);
-			if (!title) {
-				printf("Failed to create title text.\n");
-				close_window(window);
-				return;
-			}
+			if (!title) errormsg("Failed to create title text.\n");
 			draw_text(window, title);
 			delete_text(title);
 		} 
 
-		if(scr.gamestart && !scr.gameover){
+		if(scr.gamestart && !scr.gameover && !scr.next_ing && scr.next_ed){
 			// put the round number and step number on the mid bottom
 			const char* font_path = "Arial.ttf"; // 字體路徑
 			// make title_text to be "Round: %d, Step: %d"
@@ -831,42 +1066,37 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			void* title = create_text(window, font_path, title_text, font_size,
 									  (800 - text_width) / 2, 600 - font_size*2,
 									  255, 255, 255);
-			if (!title) {
-				printf("Failed to create title text.\n");
-				close_window(window);
-				return;
-			}
+			if (!title) errormsg("Failed to create title text.\n");
 			draw_text(window, title);
 			const char* image_path;
 			switch(scr.obs.wh){
 				case 1:
-					sprintf(title_text, "Discovered %d gems!", scr.obs.num);
+					sprintf(title_text, "Discovered %d gems!\ngo back with %d gem(s)", scr.obs.num, scr.gem_num);
 					// put picture gem.jpg
 					image_path = "gem.png"; // 圖片路徑
-					
 					break;
 				case 2:
-					sprintf(title_text, "TRAGEDY: SNAKE");
+					sprintf(title_text, "TRAGEDY: SNAKE\ngo back with %d gem(s)", scr.gem_num);
 					image_path = "snake.png"; // 圖片路徑
 					break;
 				case 3:
-					sprintf(title_text, "TRAGEDY: ROCKS");
+					sprintf(title_text, "TRAGEDY: ROCKS\ngo back with %d gem(s)", scr.gem_num);
 					image_path = "rocks.png"; // 圖片路徑
 					break;
 				case 4:
-					sprintf(title_text, "TRAGEDY: FIRE");
+					sprintf(title_text, "TRAGEDY: FIRE\ngo back with %d gem(s)", scr.gem_num);
 					image_path = "fire.png"; // 圖片路徑
 					break;
 				case 5:
-					sprintf(title_text, "TRAGEDY: SPIDERS");
+					sprintf(title_text, "TRAGEDY: SPIDERS\ngo back with %d gem(s)", scr.gem_num);
 					image_path = "spider.png"; // 圖片路徑
 					break;
 				case 6:
-					sprintf(title_text, "TRAGEDY: ZOMBIES");
+					sprintf(title_text, "TRAGEDY: ZOMBIES\ngo back with %d gem(s)", scr.gem_num);
 					image_path = "zombie.png"; // 圖片路徑
 					break;
 				case 7:
-					sprintf(title_text, "%d points Treasure", scr.obs.num);
+					sprintf(title_text, "%d points Treasure\ngo back with %d gem(s)", scr.obs.num, scr.gem_num);
 					char temp[256];
 					sprintf(temp, "%d_point.jpg", scr.obs.num);
 					image_path = temp; // 圖片路徑
@@ -877,21 +1107,17 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 
 			void* image = load_image(image_path);
 			if (!image) {
-				printf("Failed to load image: %s\n", image_path);
-				close_window(window);
-				return;
+				errormsg("Failed to load image.\n");
 			}
 			draw_image(window, image, 0, 200);
 			delete_image(image);
 
-			text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			text_width = (strlen(title_text)-22) * font_size / 2; // 簡單估算文字寬度
 			title = create_text(window, font_path, title_text, font_size,
 								(800 - text_width) / 2 - 50, 100,
 								255, 20, 25);
 			if (!title) {
-				printf("Failed to create title text.\n");
-				close_window(window);
-				return;
+				errormsg("Failed to create title text.\n");
 			}
 			draw_text(window, title);
 			delete_text(title);
@@ -905,9 +1131,9 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			int font_size = 30;
 			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
 			void* title = create_text(window, font_path, title_text, font_size,
-									  (545), (81),
+									  (50), (81),
 									  255, 0, 0);
-			void* button = create_button((545), (81), (text_width + 50), (font_size+10), 0, 0, 0);
+			void* button = create_button((0), (81), (text_width + 50), (font_size+10), 0, 0, 0);
 			draw_button(window, button);
 			draw_text(window, title);
 			delete_text(title);
@@ -915,9 +1141,9 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			const char* title_text2 = "press Start!";
 			text_width = strlen(title_text2) * font_size / 2; // 簡單估算文字寬度
 			title = create_text(window, font_path, title_text2, font_size,
-									  (545), (81 + font_size + 10),
+									  50, (81 + font_size + 10),
 									  255, 0, 0);
-			button = create_button((545), (81 + font_size + 10), (text_width + 50), (font_size+10), 0, 0, 0);
+			button = create_button((0), (81 + font_size + 10), (text_width + 50), (font_size+10), 0, 0, 0);
 			draw_button(window, button);
 			draw_text(window, title);
 			delete_text(title);
@@ -959,6 +1185,83 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			}
 		}
 
+		if(scr.room_ed){
+			// draw a chat room at right of the screen
+			const char* font_path = "Arial.ttf"; // 字體路徑
+			const char* title_text = "Chat Room";
+			int font_size = 30;
+			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			void* title = create_text(window, font_path, title_text, font_size,
+									  625, 81,
+									  0, 0, 0);
+			void* button = create_button(600, (81), (text_width + 50), 450, 191, 242, 229);
+			draw_button(window, button);
+			draw_text(window, title);
+			delete_text(title);
+			delete_button(button);
+
+			for(int i = 0; i < 10; i++){
+				if(scr.msgs[i].str[0] != '\0'){
+					title_text = scr.msgs[i].str;
+					font_size = 20;
+					text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+					title = create_text(window, font_path, title_text, font_size,
+										625, 150 + 30 * i,
+										0, 0, 0);
+					draw_text(window, title);
+					delete_text(title);
+				}
+			}
+
+			// 創建並繪製輸入框
+			button = create_button(190, 490, 390, 50, 255, 255, 255); // 白色background
+			draw_button(window, button);
+			delete_button(button);
+			button = create_button(195, 495, 380, 40, 0, 0, 0); // 黑色邊框
+			draw_button(window, button);
+			delete_button(button);
+
+
+			void* input_text = create_text(window, font_path, input_buffer, 30, 200, 495, 255, 255, 255);
+			draw_text(window, input_text);
+			delete_text(input_text);
+
+			// 處理輸入事件
+			if (has_focus(window)) {
+				poll_events(window);
+				char c;
+				if(is_key_pressed() == true && key_ps == false){
+					key_ps = true;
+					c = get_pressed_key();
+				}
+				if (is_key_pressed() == false && key_ps == true) {
+					key_ps = false;
+					if (c == '\b' && input_len > 0) {  // 處理刪除鍵
+						input_buffer[--input_len] = '\0';
+					} 
+					else if (c != '\b' && input_len < sizeof(input_buffer) - 1 && c >= 32 && c <= 126) {  // 處理可見字符
+						input_buffer[input_len++] = c;
+						input_buffer[input_len] = '\0';
+					} else if(c == 13 && input_len > 0){
+						// printf("Enter pressed\n");
+						sprintf(sendline, "msg: %s", input_buffer);
+						Writen(sockfd, sendline, strlen(sendline));
+						// printf("msg sent: %s\n", scr.name);
+						bzero(input_buffer, sizeof(input_buffer));
+						input_len = 0;
+
+					} 
+					else {
+						int nn = c;
+						// printf("Invalid input: %d\n", nn);
+					}
+					
+				}
+			}
+			
+			
+		}
+
         display_window(window);  // 顯示內容
 
 
@@ -988,6 +1291,9 @@ int main(int argc, char **argv){
 
 	Connect(sockfd, (SA *) &servaddr, sizeof(servaddr));
 	printf("Connected to server successfully!\n");
+	printf("\n");
+	clr_scr();		// clear screen
+	
 
 	// memset
 	memset(scr.name, 0, sizeof(scr.name));
@@ -1001,23 +1307,24 @@ int main(int argc, char **argv){
 	// 創建 SFML 視窗
     void* window = create_window(WINDOW_WIDTH, WINDOW_HEIGHT, "Client Window");
     if (!window) {
-        printf("Failed to create SFML window.\n");
-        return -1;
+        errormsg("Failed to create window.\n");
     }
 
     // 加載圖片
     const char* image_path = "Title.png"; // 圖片路徑
     void* image = load_image(image_path);
     if (!image) {
-        printf("Failed to load image: %s\n", image_path);
-        close_window(window);
-        return -1;
+        errormsg("Failed to load image");
     }
 
 	clear_window(window, 0, 0, 0);  // 黑色背景
 	draw_image(window, image, (WINDOW_WIDTH - 700) / 2, 50); // 圖片放置於中央偏上
 	
 	display_window(window);  // 顯示內容
+
+	printf("\n");
+	clr_scr();		// clear screen
+	printf("\n");
 
 	xchg_data(stdin, sockfd, window, image);		/* do it all */
 	
