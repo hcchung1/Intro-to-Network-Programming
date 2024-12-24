@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <time.h>
-#include <ctype.h>  // for strcasecmp (某些系統需要)
+#include <ctype.h>
 
 #define MAX_NAME_LENGTH 50
 #define MAX_ROOMS 5
@@ -555,7 +555,8 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                 client_stage[room_number][index] = STAGE_SET_PLAYER_COUNT;
             } else {
                 snprintf(sendline, sizeof(sendline),
-                         "you are guest of room %d.\n", chosen_room + 1);
+                         "You are guest in room %d.\n", chosen_room + 1);
+                write(client_fd, sendline, strlen(sendline));
                 snprintf(sendline, sizeof(sendline),
                          "%s has joined as guest.\n", client_names[client_fd]);
                 broadcast_message(chosen_room, sendline, client_fd);
