@@ -305,7 +305,7 @@ void end_current_round(int room_number)
             client_stage[room_number][i] = STAGE_READY;
             get_ready[room_number][i]    = 0;
         }
-        proceed_next_step(room_number);
+        // proceed_next_step(room_number);
     }
 }
 
