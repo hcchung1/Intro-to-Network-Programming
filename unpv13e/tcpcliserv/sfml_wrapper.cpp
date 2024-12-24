@@ -1,3 +1,5 @@
+#include <SFML/Window.hpp>
+#include <SFML/System.hpp>
 #include <SFML/Graphics.hpp>
 #include <map>
 #include <string>
@@ -14,11 +16,22 @@ std::map<void*, sf::Sprite*> sprites;
 // 使用全局容器管理多個按鈕（方格）
 std::map<void*, sf::RectangleShape*> buttons;
 
+sf::Event sf_event;
+
+// 用於文字輸入的緩衝區
+std::map<void*, std::string> input_buffers;
+std::map<void*, bool> enter_pressed_state;
+
 // 創建視窗
 void* create_window(int width, int height, const char* title) {
     sf::RenderWindow* window = new sf::RenderWindow(sf::VideoMode(width, height), title);
     windows[window] = window;
     return static_cast<void*>(window);
+}
+
+bool has_focus(void* window) {
+    sf::RenderWindow* win = static_cast<sf::RenderWindow*>(window);
+    return win->hasFocus() ? 1 : 0;
 }
 
 // 清除視窗
@@ -78,14 +91,12 @@ void delete_text(void* text) {
 
 void poll_events(void* window) {
     sf::RenderWindow* win = static_cast<sf::RenderWindow*>(window);
-    sf::Event event;
-    while (win->pollEvent(event)) {
-        if (event.type == sf::Event::Closed) {
+    while (win->pollEvent(sf_event)) {
+        if (sf_event.type == sf::Event::Closed) {
             win->close();
         }
     }
 }
-
 
 
 // 加載圖片並創建 Sprite
@@ -124,6 +135,22 @@ void delete_image(void* image) {
 
     delete sprite;
     delete texture;
+}
+
+// 鍵盤輸入檢測函式
+int is_key_pressed() {
+    return (sf_event.type == sf::Event::TextEntered);
+}
+
+// 獲取按下的鍵的函式
+char get_pressed_key() {
+    if (sf_event.type == sf::Event::TextEntered) {
+        // 忽略控制字符，例如退格和其他非打印字符
+        if (sf_event.text.unicode < 128) {
+            return static_cast<char>(sf_event.text.unicode);
+        }
+    }
+    return '\0'; // 如果沒有有效的鍵輸入，返回空字符
 }
 
 // 繪製矩形
@@ -193,6 +220,42 @@ int get_mouse_position_y(void* window) {
 // 檢測滑鼠左鍵是否被按下
 int is_mouse_button_pressed() {
     return sf::Mouse::isButtonPressed(sf::Mouse::Left) ? 1 : 0;
+}
+
+// 創建圓形按鈕
+void* create_circle_button(int x, int y, int radius, int r, int g, int b) {
+    auto* circle = new sf::CircleShape(radius);
+    circle->setFillColor(sf::Color(r, g, b));
+    circle->setPosition(x - radius, y - radius); // 圓形的座標為中心點
+    return static_cast<void*>(circle);
+}
+
+// 繪製圓形按鈕
+void draw_circle_button(void* window, void* button) {
+    auto* sfWindow = static_cast<sf::RenderWindow*>(window);
+    auto* circle = static_cast<sf::CircleShape*>(button);
+    sfWindow->draw(*circle);
+}
+
+// 檢測圓形按鈕是否被點擊
+int is_circle_button_clicked(void* window, void* button, int mouse_x, int mouse_y) {
+    auto* circle = static_cast<sf::CircleShape*>(button);
+
+    // 計算圓心與滑鼠點的距離
+    sf::Vector2f position = circle->getPosition();
+    float radius = circle->getRadius();
+    float centerX = position.x + radius;
+    float centerY = position.y + radius;
+
+    float dx = mouse_x - centerX;
+    float dy = mouse_y - centerY;
+    return (dx * dx + dy * dy <= radius * radius); // 判斷是否在圓形範圍內
+}
+
+// 刪除圓形按鈕
+void delete_circle_button(void* button) {
+    auto* circle = static_cast<sf::CircleShape*>(button);
+    delete circle;
 }
 
 }
