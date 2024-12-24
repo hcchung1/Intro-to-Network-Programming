@@ -788,7 +788,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
         } else {
             // 不在等 y/n => 視為聊天
             snprintf(sendline, sizeof(sendline),
-                     "%s (RUNNING): %s\n",
+                     "%s msg: %s\n",
                      room_client_names[room_number][idx], readline);
             broadcast_message(room_number, sendline, client_fd);
         }
