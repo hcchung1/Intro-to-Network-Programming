@@ -508,7 +508,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
             client_names[client_fd][MAX_NAME_LENGTH - 1] = '\0';
 
             snprintf(sendline, sizeof(sendline),
-                     "Welcome, %s! Enter room number (1-5):1: %d 2: %d 3: %d 4: %d 5: %d\n", 
+                     "Welcome, %s! Enter room number (1-5):\n %d\n %d\n %d\n %d\n %d\n", 
                      client_names[client_fd], room_client_count[0], room_client_count[1], room_client_count[2], room_client_count[3], room_client_count[4]);
             write(client_fd, sendline, strlen(sendline));
 
