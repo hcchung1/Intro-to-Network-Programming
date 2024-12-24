@@ -289,6 +289,14 @@ void end_current_round(int room_number)
             broadcast_message(room_number, buf, -1);
         }
         st->is_game_over = 1;
+        if (st->is_game_over == 1) {
+            snprintf(buf, sizeof(buf), "start next round: please type ok to prepare.\n");
+            broadcast_message(room_number, buf, -1);
+            for (int i = 0; i < room_client_count[room_number]; i++) {
+                client_stage[room_number][i] = STAGE_READY;
+                get_ready[room_number][i]    = 0;
+            }
+        }
         return;
     } else {
         proceed_next_step(room_number);
