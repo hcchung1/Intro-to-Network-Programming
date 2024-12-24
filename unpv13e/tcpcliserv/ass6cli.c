@@ -38,7 +38,9 @@ extern void* create_circle_button(int x, int y, int radius, int r, int g, int b)
 extern void draw_circle_button(void* window, void* button);
 extern void delete_circle_button(void* button);
 extern int is_circle_button_clicked(void* window, void* button, int mouse_x, int mouse_y);
-bool has_focus(void* window);
+extern bool has_focus(void* window);
+extern int is_key_pressed();
+extern char get_pressed_key();
 // extern const char* get_input_text(void* window);
 // extern void clear_input_text(void* window);
 // extern void draw_input_text(void* window, const char* font_path, int size, int x, int y, int r, int g, int b);
@@ -160,6 +162,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 	draw_image(window, image, (WINDOW_WIDTH - 700) / 2, 50); // 圖片放置於中央偏上
 	display_window(window);  // 顯示內容
 	bool ms_ps = false;
+	bool key_ps = false;
 
     for ( ; ; ) {	
 		// if(!first) {printf("firsttime\n"); first = true;};
@@ -377,11 +380,11 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 		if(scr.name_ing){
 
 			const char* font_path = "Arial.ttf"; // 字體路徑
-			const char* title_text = "Enter your name in terminal";
+			const char* title_text = "Enter your name:";
 			int font_size = 30;
 			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
 			void* title = create_text(window, font_path, title_text, font_size,
-									  (800 - text_width) / 2, (600 - font_size) / 2,
+									  (800 - text_width) / 2-100, (600 - font_size) / 2,
 									  255, 255, 255);
 			if (!title) {
 				printf("Failed to create title text.\n");
@@ -391,44 +394,59 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			draw_text(window, title);
 			delete_text(title);
 
-			// // 繪製輸入的文字
-        	// draw_input_text(window, font_path, 24, 100, 450, 255, 255, 255);
-			// 	// 獲取輸入內容
-			// const char* input = get_input_text(window);
+			// 創建並繪製發送按鈕
+			void* send_button = create_button(650, 300, 100, 50, 0, 0, 255);
+			draw_button(window, send_button);
 
-			// // 如果檢測到 Enter 鍵輸入，完成名字輸入
-			// if (strchr(input, '\n') != NULL) {
-			// 	strncpy(scr.name, input, sizeof(scr.name) - 1);
-			// 	scr.name[strcspn(scr.name, "\n")] = '\0'; // 移除換行符
-			// 	scr.name_ing = false;
-			// 	scr.name_ed = true;
-			// 	Writen(sockfd, scr.name, strlen(scr.name));
-			// 	printf("namee: %s\n", scr.name);
-			// 	// 清空輸入框緩衝區
-			// 	clear_input_text(window);
-			// }
+			void* send_button_text = create_text(window, font_path, "Send", 24, 670, 310, 255, 255, 255);
+			draw_text(window, send_button_text);
+			delete_text(send_button_text);
 
-			// capture_text_input_with_enter(window); // 捕獲輸入事件
+			void* input_text = create_text(window, font_path, input_buffer, 30, 450, 320, 255, 255, 255);
+			draw_text(window, input_text);
+			delete_text(input_text);
 
-			// // 繪製用戶輸入的內容
-			// draw_input_text(window, font_path, font_size, 100, 300, 255, 255, 255);
+			// 處理輸入事件
+			if (has_focus(window)) {
+				// poll_events(window);
+				char c;
+				if(is_key_pressed() == true && key_ps == false){
+					key_ps = true;
+					c = get_pressed_key();
+				}
+				if (is_key_pressed() == false && key_ps == true) {
+					key_ps = false;
+					if (c == '\b' && input_len > 0) {  // 處理刪除鍵
+						input_buffer[--input_len] = '\0';
+					} else if (c != '\b' && input_len < sizeof(input_buffer) - 1) {
+						input_buffer[input_len++] = c;
+						input_buffer[input_len] = '\0';
+					}
+					
+				}
 
-			// if (is_enter_pressed(window)) { // 檢測 Enter 鍵
-			// 	const char* input = get_input_text_with_enter(window);
+				if(is_mouse_button_pressed() == true && ms_ps == false){
+					ms_ps = true;
+				}
+				if (is_mouse_button_pressed() == false && ms_ps == true) {
+					ms_ps = false;
+					int mouse_x = get_mouse_position_x(window);
+					int mouse_y = get_mouse_position_y(window);
+					
+					if (is_button_clicked(window, send_button, mouse_x, mouse_y)) {
+						printf("Button clicked!\n");
+						strncpy(scr.name, input_buffer, sizeof(scr.name) - 1);
+						scr.name[strlen(scr.name)] = '\0';
+						scr.name_ed = true;
+						scr.name_ing = false;
 
-			// 	// 複製輸入的名稱並移除換行符
-			// 	strncpy(scr.name, input, sizeof(scr.name) - 1);
-			// 	scr.name[strcspn(scr.name, "\n")] = '\0'; // 移除 '\n'
-			// 	scr.name_ed = true;
-			// 	scr.name_ing = false;
-
-			// 	// 將名稱發送到伺服器
-			// 	Writen(sockfd, scr.name, strlen(scr.name));
-			// 	printf("Name sent: %s\n", scr.name);
-
-			// 	clear_input_text(window); // 清空輸入緩衝區
-			// 	break;
-			// }
+						Writen(sockfd, scr.name, strlen(scr.name));
+						printf("Name sent: %s\n", scr.name);
+					}
+					
+					
+				}
+			}
 		}
 		
 		if (scr.room_ing) {
