@@ -127,7 +127,7 @@ void initialize_rooms() {
         room_state[i].step_start_time = 0;
         room_state[i].reply_count     = 0;
         room_state[i].step_status     = 0;
-        room_state[i].is_game_over    = 0;
+        room_state[i].is_game_over    = 1;
         room_state[i].active_player_count = 0;
         room_state[i].leftcoin        = 0;
 
@@ -290,7 +290,7 @@ void end_current_round(int room_number)
         }
         st->is_game_over = 1;
         if (st->is_game_over == 1) {
-            snprintf(buf, sizeof(buf), "start next round: please type ok to prepare.\n");
+            snprintf(buf, sizeof(buf), "start next game: please type ok to prepare.\n");
             broadcast_message(room_number, buf, -1);
             for (int i = 0; i < room_client_count[room_number]; i++) {
                 client_stage[room_number][i] = STAGE_READY;
@@ -299,6 +299,12 @@ void end_current_round(int room_number)
         }
         return;
     } else {
+        snprintf(buf, sizeof(buf), "start next round: please type ok to prepare.\n");
+        broadcast_message(room_number, buf, -1);
+        for (int i = 0; i < room_client_count[room_number]; i++) {
+            client_stage[room_number][i] = STAGE_READY;
+            get_ready[room_number][i]    = 0;
+        }
         proceed_next_step(room_number);
     }
 }
@@ -730,62 +736,121 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
     case STAGE_READY: {
         // 在此階段，玩家輸入 ok/ready => get_ready = 1
         // 若房主輸入 gogo => 開始遊戲
+        RoomState *rst = &room_state[room_number];
         readline[strcspn(readline, "\n")] = '\0';
-        if (strcasecmp(readline, "ok") == 0 || strcasecmp(readline, "ready") == 0) {
-            get_ready[room_number][idx] = 1;
+        if (rst->is_game_over == 1) {
+            if (strcasecmp(readline, "ok") == 0 || strcasecmp(readline, "ready") == 0) {
+                get_ready[room_number][idx] = 1;
 
-            char buf[128];
-            snprintf(buf, sizeof(buf), "%s is ready.\n", 
-                     room_client_names[room_number][idx]);
-            broadcast_message(room_number, buf, -1);
-
-            // 檢查是否所有人都 ready
-            int all_ready = 1;
-            int cnt = room_client_count[room_number];
-            for (int i = 0; i < cnt; i++) {
-                if (get_ready[room_number][i] == 0) {
-                    all_ready = 0;
-                    break;
-                }
-            }
-            if (all_ready) {
-                snprintf(buf, sizeof(buf), 
-                         "All players are ready. Host, type 'gogo' to start the game.\n");
+                char buf[128];
+                snprintf(buf, sizeof(buf), "%s is ready.\n", 
+                        room_client_names[room_number][idx]);
                 broadcast_message(room_number, buf, -1);
-            }
-        }
-        else if (client_fd == room_host[room_number] && strcasecmp(readline, "gogo") == 0) {
-            // 主機輸入 "gogo" => 正式開始
-            snprintf(sendline, sizeof(sendline), "Game starting now!\n");
-            broadcast_message(room_number, sendline, -1);
 
-            snprintf(sendline, sizeof(sendline), 
-                     "Game in room %d has started! Prepare to explore!\n",
-                     room_number + 1);
-            broadcast_message(room_number, sendline, -1);
-
-            // 切換到 RUNNING
-            int cnt = room_client_count[room_number];
-            for (int i = 0; i < cnt; i++) {
-                client_stage[room_number][i] = STAGE_RUNNING;
-            }
-            // 真正開始
-            start_game(room_number);
-        } else if (strncasecmp(readline, "msg:", 4) == 0) {
-                char *p = readline + 4;
-                while (*p == ' ' || *p == '\t') {
-                    p++;
+                // 檢查是否所有人都 ready
+                int all_ready = 1;
+                int cnt = room_client_count[room_number];
+                for (int i = 0; i < cnt; i++) {
+                    if (get_ready[room_number][i] == 0) {
+                        all_ready = 0;
+                        break;
+                    }
                 }
-                snprintf(sendline, sizeof(sendline),
-                        "msg\n%s\n%s\n",
-                        room_client_names[room_number][idx],
-                        p);
-
+                if (all_ready) {
+                    snprintf(buf, sizeof(buf), 
+                            "All players are ready. Host, type 'gogo' to start the game.\n");
+                    broadcast_message(room_number, buf, -1);
+                }
+            }
+        
+            else if (client_fd == room_host[room_number] && strcasecmp(readline, "gogo") == 0) {
+                // 主機輸入 "gogo" => 正式開始
+                snprintf(sendline, sizeof(sendline), "Game starting now!\n");
                 broadcast_message(room_number, sendline, -1);
-        } else {
-            snprintf(sendline, sizeof(sendline), 
-                     "Invalid command. Type 'ok' or 'ready'.\n");
-            write(client_fd, sendline, strlen(sendline));
+
+                snprintf(sendline, sizeof(sendline), 
+                        "Game in room %d has started! Prepare to explore!\n",
+                        room_number + 1);
+                broadcast_message(room_number, sendline, -1);
+
+                // 切換到 RUNNING
+                int cnt = room_client_count[room_number];
+                for (int i = 0; i < cnt; i++) {
+                    client_stage[room_number][i] = STAGE_RUNNING;
+                }
+                // 真正開始
+                start_game(room_number);
+                rst->is_game_over = 0;
+            } else if (strncasecmp(readline, "msg:", 4) == 0) {
+                    char *p = readline + 4;
+                    while (*p == ' ' || *p == '\t') {
+                        p++;
+                    }
+                    snprintf(sendline, sizeof(sendline),
+                            "msg\n%s\n%s\n",
+                            room_client_names[room_number][idx],
+                            p);
+
+                    broadcast_message(room_number, sendline, -1);
+            } else {
+                snprintf(sendline, sizeof(sendline), 
+                        "Invalid command. Type 'ok' or 'ready'.\n");
+                write(client_fd, sendline, strlen(sendline));
+            }
+        } else if (rst->is_game_over == 0) {
+            if (strcasecmp(readline, "ok") == 0 || strcasecmp(readline, "ready") == 0) {
+                get_ready[room_number][idx] = 1;
+
+                char buf[128];
+                snprintf(buf, sizeof(buf), "%s is ready.\n", 
+                        room_client_names[room_number][idx]);
+                broadcast_message(room_number, buf, -1);
+
+                // 檢查是否所有人都 ready
+                int all_ready = 1;
+                int cnt = room_client_count[room_number];
+                for (int i = 0; i < cnt; i++) {
+                    if (get_ready[room_number][i] == 0) {
+                        all_ready = 0;
+                        break;
+                    }
+                }
+                if (all_ready) {
+                    snprintf(buf, sizeof(buf), 
+                            "All players are ready. Host, type 'gogo' to start the game.\n");
+                    broadcast_message(room_number, buf, -1);
+                }
+            }
+        
+            else if (client_fd == room_host[room_number] && strcasecmp(readline, "gogo") == 0) {
+                // 主機輸入 "gogo" => 正式開始
+                snprintf(sendline, sizeof(sendline), "Game starting now!\n");
+                broadcast_message(room_number, sendline, -1);
+
+                snprintf(sendline, sizeof(sendline), 
+                        "Game in room %d has started! Prepare to explore!\n",
+                        room_number + 1);
+                broadcast_message(room_number, sendline, -1);
+
+                // 切換到 RUNNING
+                int cnt = room_client_count[room_number];
+                for (int i = 0; i < cnt; i++) {
+                    client_stage[room_number][i] = STAGE_RUNNING;
+                }
+                // 真正開始
+                proceed_next_step(room_number);
+            } else if (strncasecmp(readline, "msg:", 4) == 0) {
+                    char *p = readline + 4;
+                    while (*p == ' ' || *p == '\t') {
+                        p++;
+                    }
+                    snprintf(sendline, sizeof(sendline),
+                            "msg\n%s\n%s\n",
+                            room_client_names[room_number][idx],
+                            p);
+
+                    broadcast_message(room_number, sendline, -1);
+            }
         }
         break;
     }
@@ -841,7 +906,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
 
             broadcast_message(room_number, sendline, -1);
         }
-        break;
+        break; 
     }
     default:
         snprintf(sendline, sizeof(sendline), "Unknown stage. Disconnecting.\n");
