@@ -545,10 +545,6 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
             client_stage[room_number][index] = STAGE_ROOM_OPERATION;
             get_ready[room_number][index]    = 0; // 初始化為還沒 ready
 
-            snprintf(sendline, sizeof(sendline),
-                     "You have joined room %d.\n", chosen_room+1);
-            write(client_fd, sendline, strlen(sendline));
-
             // 若此人是房主
             if (index == 0) {
                 room_host[chosen_room] = client_fd;
@@ -678,13 +674,13 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
             } else {
                 // 其他訊息視為聊天
                 snprintf(sendline, sizeof(sendline), 
-                         "%s: %s\n",
+                         "%s msg: %s\n",
                          room_client_names[room_number][idx], readline);
                 broadcast_message(room_number, sendline, client_fd);
             }
         } else {
             snprintf(sendline, sizeof(sendline), 
-                     "%s: %s\n",
+                     "%s msg: %s\n",
                      room_client_names[room_number][idx], readline);
             broadcast_message(room_number, sendline, client_fd);
         }
