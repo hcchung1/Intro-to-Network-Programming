@@ -555,6 +555,8 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                 client_stage[room_number][index] = STAGE_SET_PLAYER_COUNT;
             } else {
                 snprintf(sendline, sizeof(sendline),
+                         "you are guest of room %d.\n", chosen_room + 1);
+                snprintf(sendline, sizeof(sendline),
                          "%s has joined as guest.\n", client_names[client_fd]);
                 broadcast_message(chosen_room, sendline, client_fd);
             }
@@ -671,17 +673,28 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                          room_number + 1);
                 broadcast_message(room_number, sendline, -1);
                 start_game(room_number);
-            } else {
-                // 其他訊息視為聊天
-                snprintf(sendline, sizeof(sendline), 
-                         "%s msg: %s\n",
-                         room_client_names[room_number][idx], readline);
+            } else if (strncasecmp(readline, "msg:", 4) == 0) {
+                char *p = readline + 4;
+                while (*p == ' ' || *p == '\t') {
+                    p++;
+                }
+                snprintf(sendline, sizeof(sendline),
+                        "%s msg: %s\n",
+                        room_client_names[room_number][idx],
+                        p);
+
                 broadcast_message(room_number, sendline, client_fd);
             }
-        } else {
-            snprintf(sendline, sizeof(sendline), 
-                     "%s msg: %s\n",
-                     room_client_names[room_number][idx], readline);
+        } else if (strncasecmp(readline, "msg:", 4) == 0) {
+            char *p = readline + 4;
+            while (*p == ' ' || *p == '\t') {
+                p++;
+            }
+            snprintf(sendline, sizeof(sendline),
+                        "%s msg: %s\n",
+                        room_client_names[room_number][idx],
+                        p);
+
             broadcast_message(room_number, sendline, client_fd);
         }
 
@@ -749,8 +762,18 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
             }
             // 真正開始
             start_game(room_number);
-        }
-        else {
+        } else if (strncasecmp(readline, "msg:", 4) == 0) {
+                char *p = readline + 4;
+                while (*p == ' ' || *p == '\t') {
+                    p++;
+                }
+                snprintf(sendline, sizeof(sendline),
+                        "%s msg: %s\n",
+                        room_client_names[room_number][idx],
+                        p);
+
+                broadcast_message(room_number, sendline, client_fd);
+        } else {
             snprintf(sendline, sizeof(sendline), 
                      "Invalid command. Type 'ok' or 'ready'.\n");
             write(client_fd, sendline, strlen(sendline));
@@ -785,11 +808,16 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                          "You have already decided.\n");
                 write(client_fd, sendline, strlen(sendline));
             }
-        } else {
-            // 不在等 y/n => 視為聊天
+        } else if (strncasecmp(readline, "msg:", 4) == 0) {
+            char *p = readline + 4;
+            while (*p == ' ' || *p == '\t') {
+                p++;
+            }
             snprintf(sendline, sizeof(sendline),
-                     "%s msg: %s\n",
-                     room_client_names[room_number][idx], readline);
+                    "%s msg: %s\n",
+                    room_client_names[room_number][idx],
+                    p);
+
             broadcast_message(room_number, sendline, client_fd);
         }
         break;
