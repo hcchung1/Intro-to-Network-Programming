@@ -11,7 +11,6 @@ char id[MAXLINE];
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
-
 #define TIMEOUT_SEC 20
 
 extern void* create_window(int width, int height, const char* title);
@@ -41,14 +40,6 @@ extern int is_circle_button_clicked(void* window, void* button, int mouse_x, int
 extern bool has_focus(void* window);
 extern int is_key_pressed();
 extern char get_pressed_key();
-// extern const char* get_input_text(void* window);
-// extern void clear_input_text(void* window);
-// extern void draw_input_text(void* window, const char* font_path, int size, int x, int y, int r, int g, int b);
-// extern int is_enter_pressed(void* window);
-// extern void capture_text_input_with_enter(void* window);
-// extern const char* get_input_text_with_enter(void* window);
-
-
 
 // 定義房間結構
 typedef struct Room {
@@ -143,6 +134,7 @@ typedef struct Screen {
 	Obs obs;
 	bool gameover;
 	int all_room_num[5];
+	int room_max[5];
 	Stri msgs[8];
 	int gem_num;
 	PP players[10];
@@ -173,12 +165,6 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 	struct timeval timeout;
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 10000;
-	// stage 0: ID
-	// stage 1: send ID
-	// stage 2: room
-	// stage 3: chosen room
-	// stage 4: make command
-	// stage 5: waiting for the result
 
 	bzero(sendline, MAXLINE);
 	bzero(recvline, MAXLINE);
@@ -257,6 +243,10 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 							message = strtok(NULL, "\n");
 							if(sscanf(message, "%d", &nums) == 1){
 								scr.all_room_num[i] = nums;
+							}
+							message = strtok(NULL, "\n");
+							if(sscanf(message, "%d", &nums) == 1){
+								scr.room_max[i] = nums;
 							}
 						}
 						// printf("room number: %d %d %d %d %d\n", scr.all_room_num[0], scr.all_room_num[1], scr.all_room_num[2], scr.all_room_num[3], scr.all_room_num[4]);
@@ -477,7 +467,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 						for(int i = 0; i < 10; i++){
 							if(scr.stay[i].str[0] == '\0'){
 								strcpy(scr.stay[i].str, cmp0);
-								printf("at %d\n", i);
+								printf("%s at %d\n", cmp0, i);
 								break;
 							}
 						}
@@ -536,8 +526,10 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 					}
 					else if(strcmp(message, "Game starting now!") == 0) nums = 0; // no use
 					else {
+						
 						char msgtmp[256];
 						sprintf(msgtmp, "sys: %s", message);
+						printf("sys: %s\n", message);
 						bool msgfull = true;
 						for(int i = 0; i < 8; i++){
 							if(scr.msgs[i].str[0] == '\0'){
@@ -654,7 +646,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 
 			// 處理輸入事件
 			if (has_focus(window)) {
-				// poll_events(window);
+				
 				char c;
 				if(is_key_pressed() == true && key_ps == false){
 					key_ps = true;
@@ -703,7 +695,9 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			// 創建並繪製 5 個按鈕
 			void* buttons[5];
 			for (int i = 0; i < 5; i++) {
-				buttons[i] = create_button(200 + i * 100, 300, 50, 50, 0, 255, 0); // 綠色按鈕
+				if(scr.all_room_num[i] >= scr.room_max[i]){
+					buttons[i] = create_button(200 + i * 100, 300, 50, 50, 255, 0, 0); // 紅色按鈕
+				}else buttons[i] = create_button(200 + i * 100, 300, 50, 50, 0, 255, 0); // 綠色按鈕
 				draw_button(window, buttons[i]);
 
 				// 繪製按鈕上的數字
@@ -1313,32 +1307,32 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			const char* image_path;
 			switch(scr.obs.wh){
 				case 1:
-					sprintf(title_text, "Discovered %d gems!\ngo back with %d gem(s)", scr.obs.num, scr.gem_num);
+					sprintf(title_text, "Discovered %d gems!\n%d gems left on floor.", scr.obs.num, scr.gem_num);
 					// put picture gem.jpg
 					image_path = "gem.png"; // 圖片路徑
 					break;
 				case 2:
-					sprintf(title_text, "TRAGEDY: SNAKE\ngo back with %d gem(s)", scr.gem_num);
+					sprintf(title_text, "TRAGEDY: SNAKE\n%d gems left on floor.", scr.gem_num);
 					image_path = "snake.png"; // 圖片路徑
 					break;
 				case 3:
-					sprintf(title_text, "TRAGEDY: ROCKS\ngo back with %d gem(s)", scr.gem_num);
+					sprintf(title_text, "TRAGEDY: ROCKS\n%d gems left on floor.", scr.gem_num);
 					image_path = "rocks.png"; // 圖片路徑
 					break;
 				case 4:
-					sprintf(title_text, "TRAGEDY: FIRE\ngo back with %d gem(s)", scr.gem_num);
+					sprintf(title_text, "TRAGEDY: FIRE\n%d gems left on floor.", scr.gem_num);
 					image_path = "fire.png"; // 圖片路徑
 					break;
 				case 5:
-					sprintf(title_text, "TRAGEDY: SPIDERS\ngo back with %d gem(s)", scr.gem_num);
+					sprintf(title_text, "TRAGEDY: SPIDERS\n%d gems left on floor.", scr.gem_num);
 					image_path = "spider.png"; // 圖片路徑
 					break;
 				case 6:
-					sprintf(title_text, "TRAGEDY: ZOMBIES\ngo back with %d gem(s)", scr.gem_num);
+					sprintf(title_text, "TRAGEDY: ZOMBIES\n%d gems left on floor.", scr.gem_num);
 					image_path = "zombie.png"; // 圖片路徑
 					break;
 				case 7:
-					sprintf(title_text, "%d points Treasure\ngo back with %d gem(s)", scr.obs.num, scr.gem_num);
+					sprintf(title_text, "%d points Treasure\n%d gems left on floor.", scr.obs.num, scr.gem_num);
 					char temp[256];
 					sprintf(temp, "%d_point.jpg", scr.obs.num);
 					image_path = temp; // 圖片路徑
