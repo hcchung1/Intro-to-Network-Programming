@@ -648,7 +648,6 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                      "Round numbers set to %ld. Room setup complete! Wait for the players joining\n",
                      value);
             write(client_fd, sendline, strlen(sendline));
-            broadcast_message(room_number, sendline, -1);
 
             client_stage[room_number][idx] = STAGE_ROOM_OPERATION;
 
@@ -890,9 +889,22 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                     finalize_step_decisions(room_number);
                 }
             } else {
-                snprintf(sendline, sizeof(sendline),
-                         "You have already decided.\n");
-                write(client_fd, sendline, strlen(sendline));
+                if (strncasecmp(readline, "msg:", 4) == 0) {
+                    char *p = readline + 4;
+                    while (*p == ' ' || *p == '\t') {
+                        p++;
+                    }
+                    snprintf(sendline, sizeof(sendline),
+                            "msg\n%s\n%s\n",
+                            room_client_names[room_number][idx],
+                            p);
+
+                    broadcast_message(room_number, sendline, -1);
+                } else {
+                    snprintf(sendline, sizeof(sendline),
+                            "You have already decided.\n");
+                    write(client_fd, sendline, strlen(sendline));
+                }
             }
         } else if (strncasecmp(readline, "msg:", 4) == 0) {
             char *p = readline + 4;
