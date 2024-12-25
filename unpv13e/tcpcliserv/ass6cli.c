@@ -248,9 +248,49 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 							if(sscanf(message, "%d", &nums) == 1){
 								scr.room_max[i] = nums;
 							}
+							// printf("room number: %d %d\n", scr.all_room_num[i], scr.room_max[i]);
 						}
 						// printf("room number: %d %d %d %d %d\n", scr.all_room_num[0], scr.all_room_num[1], scr.all_room_num[2], scr.all_room_num[3], scr.all_room_num[4]);
 						scr.room_ing = true;
+						// every bools has to set to original
+						scr.round_now = 0;
+						scr.room_ed = false;
+						scr.room_num = 0;
+						scr.host.nply_ing = false;
+						scr.host.nply_ed = false;
+						scr.host.nround_ing = false;
+						scr.host.nround_ed = false;
+						scr.host.player_num = 0;
+						scr.host.round_num = 0;
+						scr.host.ishost = false;
+						scr.host.ishosted = false;
+						scr.player_ch = 0; // player's choice
+						scr.player_ch_ing = false; // player's choice is in progress
+						scr.player_ch_ed = false; // player's choice is done
+						scr.result_ing = false; // result is in progress
+						scr.isready = false; // player is ready (for guest), start the game (for host)
+						scr.gamestart = false; // game is started(broadcasted by server)
+						scr.step_now = 0; // current step number
+						scr.next_ing = false; 
+						scr.next_ed = false; 
+						scr.obs.wh = 0;
+						scr.obs.num = 0;
+						scr.gameover = false;
+						for(int i = 0; i < 8; i++){
+							scr.msgs[i].str[0] = '\0';
+						}
+						scr.gem_num = 0;
+						for(int i = 0; i < 10; i++){
+							scr.players[i].name[0] = '\0';
+							scr.players[i].score = 0;
+						}
+						for(int i = 0; i < 10; i++){
+							scr.stay[i].str[0] = '\0';
+						}
+						scr.startmsg = false;
+						for(int i = 0; i < 5; i++){
+							scr.rd_startmsg[i] = false;
+						}
 
 					}
 					else if(sscanf(message, "You are the host of room %d. Set the number of players (5-8):", &chosen_room) == 1){
@@ -286,6 +326,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 					} 
 					else if(strcmp(message, "Waiting for the host to set up the game.") == 0){
 						// printf("Waiting for the host to set up the game.\n");
+						nums = 0; // no use
 
 					}
 					else if(sscanf(message, "Game in room %d has started! Prepare to explore!", &chosen_room) == 1){
@@ -413,7 +454,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 						}
 						if(msgfull){
 							// if msg is full, shift the msg
-							for(int i = 7; i > 0; i--){
+							for(int i = 1; i < 7; i++){
 								// copy the msgs[i] to msgs[i-1]
 								strcpy(scr.msgs[i-1].str, scr.msgs[i].str);
 							}
@@ -494,7 +535,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 								}
 								if(msgfull){
 									// if msg is full, shift the msg
-									for(int i = 7; i > 0; i--){
+									for(int i = 1; i < 7; i++){
 										// copy the msgs[i] to msgs[i-1]
 										strcpy(scr.msgs[i-1].str, scr.msgs[i].str);
 									}
@@ -513,7 +554,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 								}
 								if(msgfull){
 									// if msg is full, shift the msg
-									for(int i = 7; i > 0; i--){
+									for(int i = 1; i < 7; i++){
 										// copy the msgs[i] to msgs[i-1]
 										strcpy(scr.msgs[i-1].str, scr.msgs[i].str);
 									}
@@ -540,7 +581,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 						}
 						if(msgfull){
 							// if msg is full, shift the msg
-							for(int i = 7; i > 0; i--){
+							for(int i = 1; i < 7; i++){
 								// copy the msgs[i] to msgs[i-1]
 								strcpy(scr.msgs[i-1].str, scr.msgs[i].str);
 							}
@@ -683,11 +724,11 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 		
 		if (scr.room_ing) {
 			const char* font_path = "Arial.ttf";
-			const char* title_text = "Choose a room number";
+			const char* title_text = "  Choose a room number\n(red means full don't click)";
 			int font_size = 30;
 			int text_width = strlen(title_text) * font_size / 2;
 			void* title = create_text(window, font_path, title_text, font_size,
-									(800 - text_width) / 2, (600 - font_size) / 2 - 100,
+									200, (600 - font_size) / 2 - 100,
 									255, 255, 255);
 			draw_text(window, title);
 			delete_text(title);
@@ -695,9 +736,9 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			// 創建並繪製 5 個按鈕
 			void* buttons[5];
 			for (int i = 0; i < 5; i++) {
-				if(scr.all_room_num[i] >= scr.room_max[i]){
-					buttons[i] = create_button(200 + i * 100, 300, 50, 50, 255, 0, 0); // 紅色按鈕
-				}else buttons[i] = create_button(200 + i * 100, 300, 50, 50, 0, 255, 0); // 綠色按鈕
+				if(scr.all_room_num[i] >= scr.room_max[i] && scr.room_max[i] != 0){
+					buttons[i] = create_button(150 + i * 100, 300, 50, 50, 255, 0, 0); // 紅色按鈕
+				}else buttons[i] = create_button(150 + i * 100, 300, 50, 50, 0, 255, 0); // 綠色按鈕
 				draw_button(window, buttons[i]);
 
 				// 繪製按鈕上的數字
@@ -705,8 +746,12 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				sprintf(num, "%d", i + 1);
 				char text[MAXLINE];
 				sprintf(text, "%d in", scr.all_room_num[i]);
-				void* num_text = create_text(window, font_path, num, 30, 200 + i * 100 + 15, 300 + 10, 255, 0, 255);
-				void* text_text = create_text(window, font_path, text, 30, 200 + i * 100 + 5, 300 + 50, 255, 0, 255);
+				void* num_text;
+				if(scr.room_max[i] != 0 && scr.all_room_num[i] >= scr.room_max[i])
+					num_text = create_text(window, font_path, num, 30, 150 + i * 100 + 15, 300 + 10, 255, 255, 255);
+				else 
+					num_text = create_text(window, font_path, num, 30, 150 + i * 100 + 15, 300 + 10, 255, 0, 255);
+				void* text_text = create_text(window, font_path, text, 30, 150 + i * 100 + 5, 300 + 50, 255, 0, 255);
 				draw_text(window, text_text);
 				delete_text(text_text);
 				draw_text(window, num_text);
@@ -723,6 +768,7 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				int mouse_y = get_mouse_position_y(window);
 
 				for (int i = 0; i < 5; i++) {
+					if(scr.all_room_num[i] >= scr.room_max[i] && scr.room_max[i] != 0) continue;
 					if (is_button_clicked(window, buttons[i], mouse_x, mouse_y)) {
 						// printf("Button %d clicked!\n", i + 1);
 						sprintf(sendline, "%d", i + 1);
@@ -1393,20 +1439,38 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 			int font_size = 30;
 			int text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
 			void* title = create_text(window, font_path, title_text, font_size,
-									  10, (600 - font_size) / 2,
+									  10, (600 - font_size) / 2-130,
 									  255, 0, 0);
-			void* button = create_button(10, (600 - font_size) / 2, (text_width + 50), (2 * font_size+30), 96, 10, 145);
+			void* button = create_button(10, (600 - font_size) / 2-130, (text_width + 50), (2 * font_size+30), 96, 10, 145);
 			draw_button(window, button);
 			draw_text(window, title);
 			delete_text(title);
 			title_text = "press Leave!";
 			text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
 			title = create_text(window, font_path, title_text, font_size,
+									  10, (600 - font_size) / 2 - 80,
+									  255, 0, 0);
+			draw_text(window, title);
+			delete_text(title);
+			
+			
+			title_text = "Play Again?";
+			text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			title = create_text(window, font_path, title_text, font_size,
+									  10, (600 - font_size) / 2,
+									  255, 0, 0);
+			void* button2 = create_button(10, (600 - font_size) / 2, (text_width + 50), (2 * font_size+30), 255, 255, 255);
+			draw_button(window, button2);
+			draw_text(window, title);
+			delete_text(title);
+			title_text = "press Restart!";
+			text_width = strlen(title_text) * font_size / 2; // 簡單估算文字寬度
+			title = create_text(window, font_path, title_text, font_size,
 									  10, (600 - font_size) / 2 + 50,
 									  255, 0, 0);
 			draw_text(window, title);
 			delete_text(title);
-			delete_button(button);
+			
 			if(has_focus(window) && is_mouse_button_pressed() && !ms_ps){
 				ms_ps = true;
 			}
@@ -1415,41 +1479,52 @@ void xchg_data(FILE *fp, int sockfd, void* window, void* image)
 				int mouse_x = get_mouse_position_x(window);
 				int mouse_y = get_mouse_position_y(window);
 				if (is_button_clicked(window, button, mouse_x, mouse_y)) {
+					// printf("Leave clicked!\n");
 					close_window(window);
 					return;
 				}
+				else if (is_button_clicked(window, button2, mouse_x, mouse_y)) {
+					// printf("Restart clicked!\n");
+					sprintf(sendline, "ok");
+					sendline[strlen(sendline)] = '\0';
+					Writen(sockfd, sendline, strlen(sendline));
+					// printf("sent: %s\n", sendline);
+				}
 			}
+
+			delete_button(button2);
+			delete_button(button);
 
 			char title_text3[50];
 			const char* image_path;
 			switch(scr.obs.wh){
 				case 1:
-					sprintf(title_text3, "Last befor end: gems");
+					sprintf(title_text3, "Last before end: gems");
 					// put picture gem.jpg
 					image_path = "gem.png"; // 圖片路徑
 					break;
 				case 2:
-					sprintf(title_text3, "Last befor end: SNAKE");
+					sprintf(title_text3, "Last before end: SNAKE");
 					image_path = "snake.png"; // 圖片路徑
 					break;
 				case 3:
-					sprintf(title_text3, "Last befor end: ROCKS");
+					sprintf(title_text3, "Last before end: ROCKS");
 					image_path = "rocks.png"; // 圖片路徑
 					break;
 				case 4:
-					sprintf(title_text3, "Last befor end: FIRE");
+					sprintf(title_text3, "Last before end: FIRE");
 					image_path = "fire.png"; // 圖片路徑
 					break;
 				case 5:
-					sprintf(title_text3, "Last befor end: SPIDERS");
+					sprintf(title_text3, "Last before end: SPIDERS");
 					image_path = "spider.png"; // 圖片路徑
 					break;
 				case 6:
-					sprintf(title_text3, "Last befor end: ZOMBIES");
+					sprintf(title_text3, "Last before end: ZOMBIES");
 					image_path = "zombie.png"; // 圖片路徑
 					break;
 				case 7:
-					sprintf(title_text3, "Last befor end: Treasure");
+					sprintf(title_text3, "Last before end: Treasure");
 					char temp[256];
 					sprintf(temp, "%d_point.jpg", scr.obs.num);
 					image_path = temp; // 圖片路徑
