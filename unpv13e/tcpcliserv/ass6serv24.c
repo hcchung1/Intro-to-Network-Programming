@@ -167,6 +167,7 @@ void broadcast_message(int room_number, const char *message, int exclude_fd) {
 void handle_client_disconnect(int client_fd, fd_set *all_fds) {
     char sendline[256];
     int room_number = client_rooms[client_fd];
+    RoomState *rst = &room_state[room_number];
 
     printf("Client disconnected: FD %d\n", client_fd);
     close(client_fd);
@@ -212,6 +213,7 @@ void handle_client_disconnect(int client_fd, fd_set *all_fds) {
                     room_max_players[room_number] = 0;
                     room_rounds[room_number]      = 0;
                     room_ready[room_number]       = 0;
+                    room_state[room_number].is_game_over = 1;
                     for (int i = 0; i < MAX_CLIENTS_PER_ROOM; i++) {
                         room_clients[room_number][i]         = -1;
                         room_client_names[room_number][i][0] = '\0';
@@ -782,7 +784,6 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                 }
                 // 真正開始
                 start_game(room_number);
-                rst->is_game_over = 0;
             } else if (strncasecmp(readline, "msg:", 4) == 0) {
                     char *p = readline + 4;
                     while (*p == ' ' || *p == '\t') {
