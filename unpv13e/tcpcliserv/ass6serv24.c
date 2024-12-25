@@ -750,7 +750,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                 int all_ready = 1;
                 int cnt = room_client_count[room_number];
                 for (int i = 0; i < cnt; i++) {
-                    if (get_ready[room_number][i] == 0) {
+                    if (get_ready[room_number][i] == 0 && client_fd != room_host[room_number]) {
                         all_ready = 0;
                         break;
                     }
@@ -809,7 +809,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                 int all_ready = 1;
                 int cnt = room_client_count[room_number];
                 for (int i = 0; i < cnt; i++) {
-                    if (get_ready[room_number][i] == 0) {
+                    if (get_ready[room_number][i] == 0 && client_fd != room_host[room_number]) {
                         all_ready = 0;
                         break;
                     }
