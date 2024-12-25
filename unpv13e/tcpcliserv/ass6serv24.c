@@ -816,7 +816,7 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
                 }
                 if (all_ready) {
                     snprintf(buf, sizeof(buf), 
-                            "All players are ready. Host, type 'gogo' to start the game.\n");
+                            "All players are ready.\n");
                     broadcast_message(room_number, buf, -1);
                 }
             }
