@@ -524,8 +524,8 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
             client_names[client_fd][MAX_NAME_LENGTH - 1] = '\0';
 
             snprintf(sendline, sizeof(sendline),
-                     "Welcome, %s! Enter room number (1-5):\n %d\n %d\n %d\n %d\n %d\n", 
-                     client_names[client_fd], room_client_count[0], room_client_count[1], room_client_count[2], room_client_count[3], room_client_count[4]);
+                     "Welcome, %s! Enter room number (1-5):\n %d\n %d\n %d\n %d\n %d\n %d\n %d\n %d\n %d\n %d\n", 
+                     client_names[client_fd], room_client_count[0], room_max_players[0], room_client_count[1], room_max_players[1], room_client_count[2], room_max_players[2], room_client_count[3], room_max_players[3], room_client_count[4], room_max_players[4]);
             write(client_fd, sendline, strlen(sendline));
 
             non_room_stage[client_fd] = STAGE_SELECT_ROOM;
