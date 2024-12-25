@@ -23,10 +23,12 @@
 #define STAGE_ROOM_OPERATION 4
 #define STAGE_READY 5
 #define STAGE_RUNNING 6
+#define STAGE_GAME_OVER 7
 
 /* 全域資料 */
 char client_names[MAX_CLIENTS][MAX_NAME_LENGTH];
 int  client_rooms[MAX_CLIENTS]; // client_fd 對應到哪個房間
+int first_connect[MAX_CLIENTS] = {0}; // 用來判斷是否為第一次連線
 
 /*
  * 在「房間 × 玩家索引」存每位玩家的 stage
@@ -103,8 +105,7 @@ int get_client_index_in_room(int room_number, int client_fd) {
 }
 
 /* 初始化所有房間資料 */
-void initialize_rooms() {
-    for (int i = 0; i < MAX_ROOMS; i++) {
+void initialize_rooms(int i) {
         room_client_count[i] = 0;
         room_max_players[i]  = 0;
         room_ready[i]        = 0;
@@ -113,10 +114,9 @@ void initialize_rooms() {
 
         for (int j = 0; j < MAX_CLIENTS_PER_ROOM; j++) {
             room_clients[i][j]         = -1;
-            room_client_names[i][j][0] = '\0';
 
             ready_status[i][j] = 0;
-            client_stage[i][j] = -1; 
+             
             get_ready[i][j]    = 0;  // 預設都沒準備
         }
 
@@ -141,14 +141,7 @@ void initialize_rooms() {
             room_state[i].tragedy[t] = 0;
             room_state[i].appear[t]  = 0;
         }
-    }
 
-    // 初始化 client_rooms 與 client_names
-    for (int c = 0; c < MAX_CLIENTS; c++) {
-        client_rooms[c] = -1;
-        client_names[c][0] = '\0';
-        non_room_stage[c] = 0;  // 預設在「尚未輸入名字/選房」階段
-    }
 }
 
 /* 廣播訊息到指定房間（exclude_fd可排除某個FD） */
@@ -292,12 +285,16 @@ void end_current_round(int room_number)
         }
         st->is_game_over = 1;
         if (st->is_game_over == 1) {
-            snprintf(buf, sizeof(buf), "start next game: please type ok to prepare.\n");
-            broadcast_message(room_number, buf, -1);
+            // snprintf(buf, sizeof(buf), "start next game: please type ok to prepare.\n");
+            // broadcast_message(room_number, buf, -1);
+            
             for (int i = 0; i < room_client_count[room_number]; i++) {
-                client_stage[room_number][i] = STAGE_READY;
+                client_stage[room_number][i] = STAGE_GAME_OVER;
+                printf("client_stage[%d][%d] = %d\n", room_number, i, client_stage[room_number][i]);
                 get_ready[room_number][i]    = 0;
+                
             }
+            initialize_rooms(room_number);
         }
         return;
     } else {
@@ -511,18 +508,20 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
 
     readline[bytes_read] = '\0';
     printf("Received from client FD %d: %s\n", client_fd, readline);
+    
 
     int room_number = client_rooms[client_fd];
 
     /* 若玩家尚未加入房間 */
     if (room_number == -1) {
         /* 依 non_room_stage 決定行為 */
-        if (non_room_stage[client_fd] == 0 && client_names[client_fd][0] == '\0') {
+        if (non_room_stage[client_fd] == 0) {
             // STAGE_INPUT_NAME
-            readline[strcspn(readline, "\n")] = '\0';
-            strncpy(client_names[client_fd], readline, MAX_NAME_LENGTH - 1);
-            client_names[client_fd][MAX_NAME_LENGTH - 1] = '\0';
-
+            if (client_names[client_fd][0] == '\0') {
+                readline[strcspn(readline, "\n")] = '\0';
+                strncpy(client_names[client_fd], readline, MAX_NAME_LENGTH - 1);
+                client_names[client_fd][MAX_NAME_LENGTH - 1] = '\0';
+            }
             snprintf(sendline, sizeof(sendline),
                      "Welcome, %s! Enter room number (1-5):\n %d\n %d\n %d\n %d\n %d\n %d\n %d\n %d\n %d\n %d\n", 
                      client_names[client_fd], room_client_count[0], room_max_players[0], room_client_count[1], room_max_players[1], room_client_count[2], room_max_players[2], room_client_count[3], room_max_players[3], room_client_count[4], room_max_players[4]);
@@ -611,11 +610,11 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
 
     /* 已經在房間 */
     int idx = get_client_index_in_room(room_number, client_fd);
-    if (idx < 0) {
-        snprintf(sendline, sizeof(sendline), "Error: Not in the room.\n");
-        write(client_fd, sendline, strlen(sendline));
-        return;
-    }
+    // if (idx < 0) {
+    //     snprintf(sendline, sizeof(sendline), "Error: Not in the room.\n");
+    //     write(client_fd, sendline, strlen(sendline));
+    //     return;
+    // }
 
     int stg = client_stage[room_number][idx];
     printf("client_fd=%d => room=%d, index=%d, stage=%d\n", 
@@ -927,11 +926,32 @@ void handle_client_message(int client_fd, fd_set *all_fds, int *max_fd)
         }
         break; 
     }
+    /* ------------------- 遊戲結束階段 STAGE_GAME_OVER ------------------- */
+    // case STAGE_GAME_OVER: {
+    //     readline[strcspn(readline, "\n")] = '\0';
+    //     RoomState *rst = &room_state[room_number];
+    //     printf("stage: %d\n", client_stage[room_number][idx]);
+    //     non_room_stage[client_fd] = 0;
+    //     client_rooms[client_fd] = -1;
+    //     if (strcasecmp(readline, "ok") == 0) {
+    //         client_stage[room_number][idx] = -1;
+    //     }
+    //     break;
+    // }
     default:
-        snprintf(sendline, sizeof(sendline), "Unknown stage. Disconnecting.\n");
-        write(client_fd, sendline, strlen(sendline));
-        handle_client_disconnect(client_fd, all_fds);
-        break;
+        readline[strcspn(readline, "\n")] = '\0';
+        RoomState *rst = &room_state[room_number];
+        printf("stage: %d\n", client_stage[room_number][idx]);
+        non_room_stage[client_fd] = 0;
+        client_rooms[client_fd] = -1;
+        if (strcasecmp(readline, "ok") == 0) {
+            client_stage[room_number][idx] = -1;
+        }
+        // break;
+        // snprintf(sendline, sizeof(sendline), "Unknown stage. Disconnecting.\n");
+        // write(client_fd, sendline, strlen(sendline));
+        // handle_client_disconnect(client_fd, all_fds);
+        // break;
     }
 }
 
@@ -944,7 +964,20 @@ int main() {
     fd_set all_fds, read_fds;
     FD_ZERO(&all_fds);
 
-    initialize_rooms(); 
+    
+    for (int i = 0; i < MAX_ROOMS; i++) {
+        initialize_rooms(i); 
+        for (int j = 0; j < MAX_CLIENTS_PER_ROOM; j++) {
+            room_client_names[i][j][0] = '\0';
+            client_stage[i][j] = -1;
+        }
+    }
+    // 初始化 client_rooms 與 client_names
+    for (int c = 0; c < MAX_CLIENTS; c++) {
+        client_rooms[c] = -1;
+        client_names[c][0] = '\0';
+        non_room_stage[c] = 0;  // 預設在「尚未輸入名字/選房」階段
+    }
 
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
