@@ -203,8 +203,8 @@ void handle_client_disconnect(int client_fd, fd_set *all_fds) {
                 if (room_client_count[room_number] > 0) {
                     room_host[room_number] = room_clients[room_number][0];
                     snprintf(sendline, sizeof(sendline), 
-                             "%s is now the new host of room %d.\n", 
-                             room_client_names[room_number][0], room_number + 1);
+                             "The new host of room %d is %s\n", 
+                             room_number + 1,room_client_names[room_number][0]) ;
                     broadcast_message(room_number, sendline, -1);
                 } else {
                     // 房間空 => 重置
@@ -385,7 +385,7 @@ void proceed_next_step(int room_number)
             for (int j = 0; j < cnt; j++) {
                 if (st->this_round[j] == 1) {
                     st->tempcoin[j] = 0;
-                    snprintf(sendline, sizeof(sendline), "%s went home with nothing.\n",
+                    snprintf(sendline, sizeof(sendline), "went home with nothing: %s\n",
                              room_client_names[room_number][j]);
                     broadcast_message(room_number, sendline, -1);
                 }
@@ -453,7 +453,7 @@ void finalize_step_decisions(int room_number)
                 st->active_player_count--;
             } 
             else if (st->decisions[i] == 'N') {
-                snprintf(sendline, sizeof(sendline), "%s decided to stay.\n",
+                snprintf(sendline, sizeof(sendline), "decided to stay: %s\n",
                         room_client_names[room_number][i]);
                 broadcast_message(room_number, sendline, -1);
             }
