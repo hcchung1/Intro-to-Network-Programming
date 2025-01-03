@@ -72,7 +72,8 @@
 ### 參考文獻與附錄
 
 (1) 參考文獻
-https://shengyu7697.github.io/cpp-sfml/
+https://shengyu7697.github.io/cpp-sfml/  
+
 (2) 程式碼
-https://github.com/hcchung1/Intro-to-Network-Programming/tree/main/unpv13e/tcpcliserv
+https://github.com/hcchung1/Intro-to-Network-Programming/tree/main/unpv13e/tcpcliserv  
 在該資料夾中的 ass6cli.c 、 sfml_wrapper.cpp、ass6serv24.c為本次使用到的程式碼
