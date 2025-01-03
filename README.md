@@ -62,6 +62,11 @@
 
 ### SFML Window成果
 
+<div align="center">
+   <img src = "./images/P1.jpg">
+   <img src = "./images/P2.jpg">
+</div>
+
 
 進入遊戲：輸入名字（按下enter鍵送出）
 
