@@ -79,20 +79,20 @@
   下方白色框即為輸入欄，輸入完成後按下enter鍵即可送出  
   <img src = "./images/P6.png">  
   玩家”A2”送出”Hello”後，在房間中顯示”A2: Hello”，於A2視窗顯示”me: Hello”  
-  <img src = "./images/P7.png">  
-  所有房客準備完成後，房主出現Start按鈕  
   <img src = "./images/P8.png">  
+  所有房客準備完成後，房主出現Start按鈕  
+  <img src = "./images/P9.png">  
   按下Start按鈕後即開始遊玩，出現 Leave 和 Stay兩種按鈕可以點擊，點擊後按鈕消失  
   中間下方顯示第幾輪遊戲及本輪遊戲第幾步  
-  <img src = "./images/P9.png"><img src = "./images/P10.png">  
+  <img src = "./images/P10.png"><img src = "./images/P11.png">  
   若玩家選擇Leave即回家，本輪遊戲再無兩按鈕可選擇，並於上方顯示名字與分數  
-  <img src = "./images/P11.png">  
-  在所有玩家都選擇 leave之後，或是遇到相同災難後，結束該輪遊戲，若還有下一輪遊戲，進入準備畫面，房客出現Ready 按鈕，房主等待所有人準備好後出現 Start 按鈕進入下一輪遊戲  
   <img src = "./images/P12.png">  
-  所有遊戲結束後，進入結束畫面，於聊天室顯示贏家祝賀訊息  
+  在所有玩家都選擇 leave之後，或是遇到相同災難後，結束該輪遊戲，若還有下一輪遊戲，進入準備畫面，房客出現Ready 按鈕，房主等待所有人準備好後出現 Start 按鈕進入下一輪遊戲  
   <img src = "./images/P13.png">  
-  左側兩個按鈕紫色為關閉程式並發送FIN訊號給server，白色回到遊戲大廳選擇房間繼續遊玩  
+  所有遊戲結束後，進入結束畫面，於聊天室顯示贏家祝賀訊息  
   <img src = "./images/P14.png">  
+  左側兩個按鈕紫色為關閉程式並發送FIN訊號給server，白色回到遊戲大廳選擇房間繼續遊玩  
+  <img src = "./images/P15.png">  
   
   
   
