@@ -23,7 +23,7 @@
 
 **分工：**  
 - 陳景寬：Server / 報告  
-- 鍾承翰：Client / SFML / SFML_Wrapper / 報告
+- 鍾承翰：Client / SFML / SFML_Wrapper / 報告 / Github Repository maintaining
 
 **開發與執行需求：**  
 - Ubuntu 20.04、安裝SFML、gcc、g++
