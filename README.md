@@ -1,6 +1,6 @@
 # Intro-to-Network-Programming Final Project
 
-## Topic: Incan Gold
+## Topic: Incan Gold 印加寶藏
 ## Arthur: 112550189 鍾承翰, 112550112 陳景寬
 
 ### Introduction 簡介
