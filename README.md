@@ -63,14 +63,11 @@
 ### SFML Window成果
 
 <div align="center">
-   <img src = "./images/P1.jpg">
-   <img src = "./images/P2.jpg">
+    進入遊戲：輸入名字（按下enter鍵送出）  
+   <img src = "./images/P1.png">  
+    完成名字輸入後可以選擇房間，左下左下角為該玩家名字，點擊綠色按鈕選擇房間  
+   <img src = "./images/P2.png">  
 </div>
-
-
-進入遊戲：輸入名字（按下enter鍵送出）
-
-完成名字輸入後可以選擇房間，左下左下角為該玩家名字，點擊綠色按鈕選擇房間
 
 ### 結論(心得含困難與解決經過改進及延伸方向)
 
