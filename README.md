@@ -57,6 +57,10 @@
   - 直到該輪遊戲結束後，會在畫面中間顯示最後一個遇到的物品，及左上角顯示的 “Ready to Next round?”，左下角則是Ready 按鈕，按下後通知所有人該名房客已經準備好，最後由房主按下Start 開始下一輪，期間亦可在聊天室交流
   - 重複以上至多輪遊戲結束後，左邊有紫色按鈕離開遊戲結束整個Client 程式或是按下白色按鈕再次進入大廳選擇房間
 - 下為Server 與 Client 互動原則
+<div align="center">
+   <img src = "./images/C1.jpg">
+   <img src = "./images/C2.jpg">
+</div>
 
 ### SFML Window成果
 
